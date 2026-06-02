@@ -198,9 +198,10 @@ class BWS_GP_Layout_Detector {
 			}
 
 			// Pass all three condition meta to show_data() (V4).
-			$display  = get_post_meta( $element_id, '_generate_element_display_conditions', true );
-			$exclude  = get_post_meta( $element_id, '_generate_element_exclude_conditions', true );
-			$users    = get_post_meta( $element_id, '_generate_element_user_conditions', true );
+			// Normalize: get_post_meta returns '' when unset; show_data expects array-of-arrays.
+			$display  = get_post_meta( $element_id, '_generate_element_display_conditions', true ) ?: array();
+			$exclude  = get_post_meta( $element_id, '_generate_element_exclude_conditions', true ) ?: array();
+			$users    = get_post_meta( $element_id, '_generate_element_user_conditions', true ) ?: array();
 
 			if ( GeneratePress_Conditions::show_data( $display, $exclude, $users ) ) {
 				return true;
