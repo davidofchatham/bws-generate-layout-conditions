@@ -31,4 +31,4 @@ Note: on a GenerateBlocks Pro site, deploy the condition together with the fix â
 == Changelog ==
 
 = 0.1.0 =
-* Initial scaffold. Not yet deployed.
+* Initial release.

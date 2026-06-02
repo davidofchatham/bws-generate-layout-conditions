@@ -23,12 +23,15 @@ define( 'BWS_GLC_URL',      plugin_dir_url( __FILE__ ) );
 define( 'BWS_GLC_BASENAME', plugin_basename( __FILE__ ) );
 
 add_action( 'plugins_loaded', 'bws_glc_bootstrap', 5 );
+add_action( 'plugins_loaded', 'bws_glc_load_condition', 20 );
 
 function bws_glc_bootstrap() {
 	require_once BWS_GLC_DIR . 'includes/class-disable-elements.php';
 	require_once BWS_GLC_DIR . 'includes/class-detector.php';
 	require_once BWS_GLC_DIR . 'includes/class-body-classes.php';
+}
 
+function bws_glc_load_condition() {
 	if ( class_exists( 'GenerateBlocks_Pro_Conditions_Registry' ) ) {
 		require_once BWS_GLC_DIR . 'includes/class-condition.php';
 	}

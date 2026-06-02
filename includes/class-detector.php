@@ -101,6 +101,11 @@ class BWS_GP_Layout_Detector {
 	}
 
 	private static function is_featured_image_disabled() {
+		// Hook is only added on is_singular() — absence on archives is meaningless (B2).
+		if ( ! is_singular() ) {
+			return false;
+		}
+
 		// Config-based, NOT render-based (V7). Never consult has_post_thumbnail().
 		return ! has_action( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}

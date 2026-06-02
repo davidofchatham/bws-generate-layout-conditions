@@ -27,7 +27,7 @@ function bws_glc_register_condition() {
 	GenerateBlocks_Pro_Conditions_Registry::register(
 		'gp_layout_state',
 		array(
-			'label'     => __( 'GP Layout State', 'bws-generate-layout-conditions' ),
+			'label'     => __( 'GP Layout', 'bws-generate-layout-conditions' ),
 			'operators' => array( 'is', 'is_not' ),
 		),
 		'BWS_GP_Layout_State_Condition'

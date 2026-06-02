@@ -51,6 +51,8 @@ Make GP disable states (7) + sidebar layout usable by GP Block Elements. Block E
 - V16 readme.txt `Stable tag` == plugin header `Version`. Bump both together. PUC reads plugin header `Version` to compare against GitHub release tag → a stale header = clients never see update.
 - V17 PUC bundled (NOT Composer) — no build step (C1); versioned namespace `v5` avoids cross-plugin collision. Update source = GitHub releases of this repo. Repo PUBLIC once published → no auth token in checker.
 - V18 Release flow: git tag (`v{X.Y.Z}`) + GitHub release → PUC detects update. Tag version == plugin header `Version` == readme `Stable tag` (V16). Ship a built zip as the release asset (or let PUC use the auto source zip — must contain plugin at correct path, NOT nested in repo-name dir).
+- V19 GB Pro condition registration must run at `plugins_loaded` pri ≥ 11 (GB Pro loads at pri 10). Core includes (disable-elements, detector, body-classes) may stay at pri 5 — they have no GB Pro dependency.
+- V20 `is_featured_image_disabled()` returns false on non-singular pages. GP only adds `generate_blog_single_featured_image` to `generate_after_entry_header` on `is_singular()` — hook absence on archives is not a disable signal. Archive featured image state is not detectable via hook-state.
 
 ## §T tasks
 
@@ -67,3 +69,5 @@ Make GP disable states (7) + sidebar layout usable by GP Block Elements. Block E
 
 | id | date | cause | fix |
 |---|---|---|---|
+| B1 | 2026-06-02 | `class_exists('GenerateBlocks_Pro_Conditions_Registry')` check ran at `plugins_loaded:5` — before GB Pro (pri 10) loaded — so `class-condition.php` never required, condition never registered | Split bootstrap: core at pri 5, condition+PUC load at pri 20 (V19) |
+| B2 | 2026-06-02 | `is_featured_image_disabled()` used `! has_action('generate_after_entry_header','generate_blog_single_featured_image')` on archive pages — GP only adds that hook on `is_singular()`, so hook is always absent on archives → false positive `gp-no-featured-image` class | Guard with `is_singular()`; return false on non-singular (V20) |
