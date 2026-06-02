@@ -93,6 +93,9 @@ class BWS_GP_Layout_Detector {
 	}
 
 	private static function is_content_title_disabled() {
+		// V21 ambiguity: Page Hero "Disable title" adds this same filter because the Hero
+		// embeds the title itself — filter present but title is active via the Hero.
+		// Hook-state wins in v1. Same future toggle as featured image will apply here.
 		return (bool) has_filter( 'generate_show_title', '__return_false' );
 	}
 
@@ -107,6 +110,17 @@ class BWS_GP_Layout_Detector {
 		}
 
 		// Config-based, NOT render-based (V7). Never consult has_post_thumbnail().
+		//
+		// V21 ambiguity: Page Hero "Disable featured image" (and "Disable title" for
+		// is_content_title_disabled) removes this hook because the Hero embeds the element
+		// itself — hook absent but element is active in a different position. Hook-state
+		// wins in v1. A future toggle should let users choose hook-state vs config-replay.
+		// Do not change without that toggle — both interpretations are valid per-site.
+		//
+		// V22 gap: Layout Element "disable_featured_image" fires remove_action without
+		// is_singular() guard, so it disables on archives too. We always return false on
+		// non-singular (B2), missing that signal. Fix requires config-replay for featured
+		// image on non-singular — not implemented in v1.
 		return ! has_action( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}
 
