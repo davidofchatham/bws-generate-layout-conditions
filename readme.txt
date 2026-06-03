@@ -7,63 +7,33 @@ Stable tag: 0.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-[TODO: one-sentence tagline — what problem this solves, for whom]
+Adds Theme condition types to GB Pro so blocks can be hidden when a corresponding theme element is disabled via Layout or post-level settings.
 
 == Description ==
 
-[TODO: opening paragraph — the problem: Block Elements replacing theme sections don't respect GP layout config natively]
+GeneratePress **Disable Element** settings don't integrate well with Block Elements that replace your theme sections: the settings in a Layout Element don't apply at all, and the post-level metabox uses `display:none` on whole wrappers like `.site-header`, which may hide more than you intend.
 
-[TODO: paragraph — what the plugin does: three layers (fix, body classes, condition)]
+This plugin detects the applicable settings from both Layout Elements and posts at render time, and gives you two options for better integration:
 
-[TODO: paragraph — who needs this: GP Premium + GB Pro sites using Block Elements to replace header/footer/nav/etc.]
+* **Conditions** — two GenerateBlocks Pro condition types, **Theme Element Status** and **Theme Sidebar**. Add one to a block inside an Element to hide it when the matching theme element is disabled. *Nothing is hidden automatically;* you configure conditions yourself, per block.
+* **`body` classes** — `gp-no-{component}` for each disabled state, allowing for a custom CSS approach.
 
-=== What's included ===
+It also disables GeneratePress's post-level `display:none`, leaving the PHP hook-based disabling in place.
 
-**The fix** — [TODO: brief description of CSS-neutralize]
-
-**Body classes** — Emits `gp-no-{component}` for each disabled state. GeneratePress emits no body class when a section is disabled; this fills that gap.
-
-[TODO: list the seven classes: gp-no-header, gp-no-footer, gp-no-primary-nav, gp-no-secondary-nav, gp-no-top-bar, gp-no-featured-image, gp-no-content-title]
-
-**Conditions** (`gp_theme_element`, `gp_theme_sidebar`) — Two GenerateBlocks Pro custom conditions. "Theme Element Status" lets blocks render or not based on GP element disable state (7 rules); "Theme Sidebar" based on the resolved sidebar layout (3 rules). The mechanism that makes a Block Element react to GP layout config.
-
-[TODO: list the 10 condition rules with brief description of each]
-
-=== Detection reference ===
-
-What each condition rule detects and its corresponding body class:
-
-[TODO: insert table — see docs/architecture.md element toggle map for source data]
-
-| Condition rule | True when | Body class | GP native class |
-|---|---|---|---|
-| Header Active | Header not disabled | `gp-no-header` (when false) | — |
-| Footer Active | Footer not disabled | `gp-no-footer` (when false) | — |
-| Primary Nav Active | Primary nav not disabled | `gp-no-primary-nav` (when false) | — |
-| Secondary Nav Active | Secondary nav not disabled (post metabox only) | `gp-no-secondary-nav` (when false) | — |
-| Top Bar Active | Top bar not disabled | `gp-no-top-bar` (when false) | — |
-| Featured Image Active | Featured image not disabled by config | `gp-no-featured-image` (when false) | `featured-image-active` (different — render-based) |
-| Content Title Active | Content title not disabled | `gp-no-content-title` (when false) | — |
-| Left Sidebar Active | Left sidebar renders (layout = left or both) | — | `left-sidebar` |
-| Right Sidebar Active | Right sidebar renders (layout = right or both) | — | `right-sidebar` |
-| No Sidebars Active | Sidebar layout = none | — | `no-sidebar` |
-
-Note: sidebar body classes are emitted by GeneratePress natively; this plugin adds no sidebar class of its own. Sidebar rules are membership tests — "Left Sidebar Active" is true on a both-sidebars page too. To match the both-sidebars layout exactly, combine "Left Sidebar Active" and "Right Sidebar Active" with AND.
-
-=== Known limitations ===
-
-[TODO: plain-language summary of detection gaps — secondary nav Layout Element, Customizer layer, archive featured image, Page Hero toggle ambiguity]
+Additional documentation, including the condition/body-class reference table and known limitations, are in the project README on GitHub: https://github.com/davidofchatham/bws-generate-layout-conditions
 
 == Dependencies ==
 
 * **GeneratePress Premium** — required. Plugin will not activate without it.
-* **GenerateBlocks Pro** — optional. The `gp_theme_element` / `gp_theme_sidebar` conditions require GB Pro; the fix and body classes run without it.
-
-**Important:** On a GenerateBlocks Pro site, deploy this plugin together with your Block Elements. The fix alone (without the condition) removes GP's CSS hide but does not supply the condition replacement — a section that should be disabled would appear.
+* **GenerateBlocks Pro** — optional. The `gp_theme_element` / `gp_theme_sidebar` conditions require GB Pro; disabling the post-level `display:none` and adding the `body` classes work without it.
 
 == Installation ==
 
-[TODO: installation steps — upload, activate, dependencies note]
+1. Ensure **GeneratePress Premium** is installed and active — this plugin will not activate without it.
+2. Upload the plugin folder to `/wp-content/plugins/`, or install the zip via Plugins → Add New → Upload.
+3. Activate the plugin through the Plugins screen.
+4. For the conditions, ensure **GenerateBlocks Pro** is active.
+5. Add a **Theme Element Status** or **Theme Sidebar** condition to the blocks inside your Block Elements that should hide when the matching theme element is disabled.
 
 == Frequently Asked Questions ==
 

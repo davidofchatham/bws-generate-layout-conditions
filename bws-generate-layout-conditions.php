@@ -1,13 +1,12 @@
 <?php
 /**
- * Plugin Name:       BWS GP Layout Conditions
- * Plugin URI:        https://github.com/bridgewebsolutions/bws-generate-layout-conditions
- * Description:       Makes GeneratePress disable states and sidebar layout usable by GenerateBlocks Pro Block Elements.
+ * Plugin Name:       GP Layout Conditions by BWS
+ * Plugin URI:        https://github.com/davidofchatham/bws-generate-layout-conditions
+ * Description:       Adds Theme condition types to GB Pro so blocks can be hidden if a corresponding theme element is disabled via Layout or post-level settings.
  * Version:           0.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
- * Author:            Bridge Web Solutions
- * Author URI:        https://bridgewebsolutions.com
+ * Author:            David Mitchell (Bridge Web Solutions) and Claude AI
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Requires Plugins:  gp-premium

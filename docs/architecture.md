@@ -46,8 +46,8 @@ How each of the seven disable states is detected. "Hook-state" = reads the live 
 
 | Component | Detection method | Hook / meta key | Layer gaps | Notes |
 |---|---|---|---|---|
-| Header | Config-replay (post-meta + Layout Element) | post: `_generate-disable-header`; layout: `_generate_disable_site_header` | Customizer not detected | Hook signal poisoned by Block Element (ADR-0001) |
-| Footer | Config-replay (post-meta + Layout Element) | post: `_generate-disable-footer`; layout: `_generate_disable_footer` | Customizer not detected | Same poisoning reason as header |
+| Header | Config-replay (post-meta + Layout Element) | post: `_generate-disable-header`; layout: `_generate_disable_site_header` | None — GP core has no Customizer header-disable | Hook signal poisoned by Block Element (ADR-0001) |
+| Footer | Config-replay (post-meta + Layout Element) | post: `_generate-disable-footer`; layout: `_generate_disable_footer` | None — footer-bar/footer-widgets Customizer controls are PHP-gated (V24), not disable-state layers | Same poisoning reason as header |
 | Primary nav | Hook-state | `has_filter('generate_navigation_location','__return_false')` | None known | Both Layout Element and post metabox set this filter |
 | Secondary nav | Post-meta only | `_generate-disable-secondary-nav` | Layout Element not detected | No clean hook; array-callback on `has_nav_menu` not checkable |
 | Top bar | Hook-state | `has_action('generate_before_header','generate_top_bar')` | None known | |
@@ -86,20 +86,34 @@ Distinguish two codebases — both emit frontend CSS, only one is disable-keyed:
 
 Net: a site relying on standard Customizer global config is unaffected by neutralize, because those disables never used the CSS path neutralize targets — they PHP-gate in the core theme, while the CSS path lives in the Premium per-post module.
 
-**Per-post metabox toggles — split by whether CSS is the only suppressor:**
+**Per-post metabox toggles — PHP-vs-CSS suppression matrix.**
 
-| Toggle (post-meta) | PHP removal in `_setup`? | CSS-only? | Neutralize regression risk |
-|---|---|---|---|
-| Header (`_generate-disable-header`) | yes (`remove_action` construct-header) | no | none |
-| Top bar (`_generate-disable-top-bar`) | yes (`remove_action` top-bar) | no | none |
-| Primary nav (`_generate-disable-nav`) | partial — `generate_navigation_location→__return_false` kills source nav + sticky clone, but mobile-header wrapper survives (V25) | wrapper only | **partial regression** — `#mobile-header` bar reappears on Menu-Plus-mobile-header sites (V25) |
-| Mobile header (`_generate-disable-mobile-header`) | yes (`remove_action` `generate_menu_plus_mobile_header`) | no | none — distinct from Primary-nav case (V25) |
-| Content title (`_generate-disable-headline`) | yes on GP ≥ 3.0 (`generate_show_title` → `__return_false`); CSS only on GP < 3.0 | no (modern GP) | none on GP ≥ 3.0 |
-| Footer (`_generate-disable-footer`) | yes (`remove_action` footer) | no | none |
-| **Featured Image** (`_generate-disable-post-image`) | **no** — `generate_featured_page_header_area()` outputs whenever `has_post_thumbnail()` | **yes** | **regression** — reappears without replacement condition |
-| **Secondary Nav** (`_generate-disable-secondary-nav`) | **no** — no `remove_action` in `_setup` | **yes** | **regression** — reappears without replacement condition |
+The two halves of this module are NOT mirror images. `generate_disable_elements_setup()` (PHP, `wp` pri 50) and `generate_disable_elements()` (CSS, the selection) each cover a *different subset* of the toggles. The PHP list is broader than the CSS list (e.g. top bar PHP-removes but has no CSS rule at all), and two toggles have CSS but no PHP. Neutralize removes only the CSS column — so a toggle is at risk exactly when CSS is its *only* suppressor.
 
-Net regression surface of neutralize-without-replacement: **Featured Image** (full), **Secondary Nav** (full), **Primary Nav's `#mobile-header` wrapper** (partial — Menu Plus mobile header active + per-post Primary Nav disabled; V25). Everything else is either PHP-gated (CSS redundant) or in an untouched system.
+| Toggle (post-meta) | PHP suppress (`_setup`) | CSS suppress (`generate_disable_elements`) | Coverage | Neutralize risk |
+|---|---|---|---|---|
+| Header (`_generate-disable-header`) | ✅ `remove_action` construct-header | ✅ `.site-header` | both (CSS redundant) | none |
+| Footer (`_generate-disable-footer`) | ✅ `remove_action` footer | ✅ `.site-footer` | both (CSS redundant) | none |
+| Primary nav (`_generate-disable-nav`) | ✅ `generate_navigation_location→__return_false` (kills source nav + sticky clone) | ✅ `#site-navigation,.navigation-clone,#mobile-header !important` | both for source nav (CSS redundant); **CSS-only for `#mobile-header` wrapper** | **partial** — `#mobile-header` bar reappears on Menu-Plus sites (V25) |
+| Top bar (`_generate-disable-top-bar`) | ✅ `remove_action` top-bar | ❌ no rule | PHP-only | none |
+| Mobile header (`_generate-disable-mobile-header`) | ✅ `remove_action` `generate_menu_plus_mobile_header` | ❌ no rule | PHP-only | none |
+| Content title (`_generate-disable-headline`) | ✅ GP≥3.0 `generate_show_title→__return_false` | only on GP<3.0 (`.entry-header`) | PHP-only on modern GP | none on GP≥3.0 |
+| **Featured Image** (`_generate-disable-post-image`) | ❌ none — `generate_featured_page_header_area()` outputs whenever `has_post_thumbnail()` | ✅ `.generate-page-header,.page-header-image,.page-header-image-single` | **CSS-only** | **full regression** — reappears without replacement condition |
+| **Secondary Nav** (`_generate-disable-secondary-nav`) | ❌ none in `_setup` | ✅ `#secondary-navigation` | **CSS-only** | **full regression** — reappears without replacement condition |
+
+Read the coverage column, not a "both except N" rule — the redundancy is patchy:
+- **Both (CSS redundant):** Header, Footer, Primary-nav (source nav only).
+- **PHP-only (no CSS at all):** Top bar, Mobile-header toggle, Content-title (modern GP).
+- **CSS-only (PHP absent):** Featured Image, Secondary Nav — plus Primary-nav's `#mobile-header` sub-element, which PHP misses.
+
+Net regression surface of neutralize-without-replacement: **Featured Image** (full), **Secondary Nav** (full), **Primary Nav's `#mobile-header` wrapper** (partial — Menu Plus mobile header active + per-post Primary Nav disabled; V25). Everything else is either PHP-suppressed (CSS redundant) or in an untouched system.
+
+**Why GP left these CSS-only is not "because it's hard."** Clean PHP suppression already exists for both full-risk toggles — GP simply didn't wire it into the legacy metabox module:
+- Secondary Nav — GP's **own** Layout Element disables it via `add_filter('has_nav_menu', …)` returning `false` for the `'secondary'` location (`class-layout.php:534`); the render gate is `if ( has_nav_menu('secondary') )` (`secondary-nav/functions.php:702`). The metabox module just never adopted this filter.
+- Featured Image — a plain `remove_action('generate_after_header','generate_featured_page_header',10)` + `remove_action('generate_before_content','generate_featured_page_header_inside_single',10)` suppresses it (hooks at `featured-images.php:96,114`).
+- `#mobile-header` wrapper — no dedicated filter, but `remove_action('generate_after_header','generate_menu_plus_mobile_header',5)` removes it (`generate-menu-plus.php:1070`).
+
+This means a **convert-to-PHP** alternative to the V14 CSS re-emit exists: instead of neutralizing CSS and depending on a substitute GB Pro condition, the plugin can add the equivalent PHP suppression keyed on the same `_generate-disable-*` meta (on `wp`, before render hooks). The post-level toggle then keeps working with no CSS and no required replacement Element — dissolving the V14 regression for these three. Open risks before adopting: hook timing vs. `_setup` (pri 50) and composition with GB Pro conditions (must stay OR per V1). Tracked in Deferred work.
 
 ---
 

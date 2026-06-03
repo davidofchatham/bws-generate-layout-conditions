@@ -19,8 +19,9 @@ _Avoid_: "header element" / "footer element" used loosely
 **Layout Element**:
 A GeneratePress Premium `gp_elements` entry that applies layout settings (including disables) via display-rule conditions. Sets disable state through hook changes at `wp` priority 100. Distinct from a **Block Element**.
 
-**The fix** (CSS-neutralize):
-Pre-defining `generate_disable_elements()` to return `''`, suppressing GP's wholesale `display:none` on section wrappers. The load-bearing change — without it the CSS hides any Block Element inside standard wrappers. (Scope detail: architecture.md "Neutralize scope".)
+**Disabling display:none** (a.k.a. CSS-neutralize):
+Pre-defining `generate_disable_elements()` to return `''`, suppressing the `display:none` GP Premium emits for the **per-post Disable Elements metabox** (`.site-header`/`.site-footer`/etc.). A Layout Element disables by hook-removal, not CSS, so it is not the target. Not a standalone fix — it only stops GP's over-broad blanket hide (which would catch the top bar inside a header Block Element, the legal section inside a footer Block Element, etc.); the conditions then do the precise hiding. Without it the CSS hides any Block Element inside a suppressed wrapper. (Scope detail: architecture.md "Neutralize scope".)
+_Avoid_: "the fix" (fixes nothing alone), "the override".
 _Avoid_: "the override"
 
 **Detector**:
