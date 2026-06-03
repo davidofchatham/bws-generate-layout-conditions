@@ -4,12 +4,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
- * GB Pro custom condition: gp_layout_state
+ * GB Pro custom conditions: gp_theme_element + gp_theme_sidebar (V27).
  *
- * Modeled on class-condition-device.php (V10): no value field, operators is/is_not.
- * 11 rules — 7 disable-state booleans + 4 sidebar-layout enum matches (V11).
+ * Split from the former single gp_layout_state slug — the slug is persisted in
+ * saved condition data, so the split is done pre-release to avoid a migration.
+ * Reserved future slug: gp_theme_container (container width — not built).
  *
- * evaluate() discards $context['post_id'] — page-level state, not loop-item (V6).
+ * Both modeled on class-condition-device.php (V10): no value field, operators
+ * is/is_not. evaluate() discards $context['post_id'] — page-level state (V6).
  * "Active" = not-disabled-by-config, NOT actual-render. Never consult
  * has_post_thumbnail() or GP's featured-image-active class (V7).
  *
@@ -21,20 +23,34 @@ if ( ! class_exists( 'GenerateBlocks_Pro_Conditions_Registry' ) ) {
 	return;
 }
 
-add_action( 'generateblocks_register_conditions', 'bws_glc_register_condition' );
+add_action( 'generateblocks_register_conditions', 'bws_glc_register_conditions' );
 
-function bws_glc_register_condition() {
+function bws_glc_register_conditions() {
 	GenerateBlocks_Pro_Conditions_Registry::register(
-		'gp_layout_state',
+		'gp_theme_element',
 		array(
-			'label'     => __( 'GP Layout', 'bws-generate-layout-conditions' ),
+			'label'     => __( 'Theme Element Status', 'bws-generate-layout-conditions' ),
 			'operators' => array( 'is', 'is_not' ),
 		),
-		'BWS_GP_Layout_State_Condition'
+		'BWS_GP_Theme_Element_Condition'
+	);
+
+	GenerateBlocks_Pro_Conditions_Registry::register(
+		'gp_theme_sidebar',
+		array(
+			'label'     => __( 'Theme Sidebar', 'bws-generate-layout-conditions' ),
+			'operators' => array( 'is', 'is_not' ),
+		),
+		'BWS_GP_Theme_Sidebar_Condition'
 	);
 }
 
-class BWS_GP_Layout_State_Condition extends GenerateBlocks_Pro_Condition_Abstract {
+/**
+ * Theme Element Status — the 7 component disable states (V11, V27).
+ *
+ * Each rule true when the component is NOT disabled by config ("Active", V7).
+ */
+class BWS_GP_Theme_Element_Condition extends GenerateBlocks_Pro_Condition_Abstract {
 
 	/**
 	 * Evaluate the condition.
@@ -78,29 +94,13 @@ class BWS_GP_Layout_State_Condition extends GenerateBlocks_Pro_Condition_Abstrac
 			case 'content_title_active':
 				$match = ! $states['content_title'];
 				break;
-
-			case 'no_sidebars_active':
-				$match = ( 'no-sidebar' === $states['sidebar'] );
-				break;
-
-			case 'left_sidebar_active':
-				$match = ( 'left-sidebar' === $states['sidebar'] );
-				break;
-
-			case 'right_sidebar_active':
-				$match = ( 'right-sidebar' === $states['sidebar'] );
-				break;
-
-			case 'both_sidebars_active':
-				$match = ( 'both-sidebars' === $states['sidebar'] );
-				break;
 		}
 
 		return 'is_not' === $operator ? ! $match : $match;
 	}
 
 	/**
-	 * Rule keys → display labels (V11: 11 rules, all "Active" suffix).
+	 * Rule keys → display labels (V11: 7 component rules, all "Active" suffix).
 	 *
 	 * @return array
 	 */
@@ -113,11 +113,76 @@ class BWS_GP_Layout_State_Condition extends GenerateBlocks_Pro_Condition_Abstrac
 			'top_bar_active'        => __( 'Top Bar Active', 'bws-generate-layout-conditions' ),
 			'featured_image_active' => __( 'Featured Image Active', 'bws-generate-layout-conditions' ),
 			'content_title_active'  => __( 'Content Title Active', 'bws-generate-layout-conditions' ),
-			// Sidebar plural by count: "No Sidebars"/"Both Sidebars" vs singular (V11).
-			'no_sidebars_active'    => __( 'No Sidebars Active', 'bws-generate-layout-conditions' ),
-			'left_sidebar_active'   => __( 'Left Sidebar Active', 'bws-generate-layout-conditions' ),
-			'right_sidebar_active'  => __( 'Right Sidebar Active', 'bws-generate-layout-conditions' ),
-			'both_sidebars_active'  => __( 'Both Sidebars Active', 'bws-generate-layout-conditions' ),
+		);
+	}
+
+	/**
+	 * No value field for any rule — Device-condition pattern (V10).
+	 *
+	 * @param string $rule Rule key (unused — all rules share the same metadata).
+	 * @return array
+	 */
+	public function get_rule_metadata( $rule ) {
+		return array(
+			'needs_value' => false,
+			'value_type'  => 'none',
+		);
+	}
+}
+
+/**
+ * Theme Sidebar — sidebar-present membership rules (V11, V26, V27).
+ *
+ * Membership not exclusive enum-match (B4): left/right are true whenever that
+ * side renders, INCLUDING the both-sidebars layout. "Both" and "neither" are
+ * composable via AND; only "no sidebars" keeps a convenience rule.
+ */
+class BWS_GP_Theme_Sidebar_Condition extends GenerateBlocks_Pro_Condition_Abstract {
+
+	/**
+	 * Evaluate the condition.
+	 *
+	 * @param string $rule     Rule key (e.g. 'left_sidebar_active').
+	 * @param string $operator 'is' or 'is_not'.
+	 * @param mixed  $value    Ignored — no value field (V10).
+	 * @param array  $context  Ignored — page-level state, not loop-item (V6).
+	 * @return bool
+	 */
+	public function evaluate( $rule, $operator, $value, $context = array() ) {
+		$sidebar = BWS_GP_Layout_Detector::states()['sidebar'];
+		$match   = false;
+
+		switch ( $rule ) {
+			case 'left_sidebar_active':
+				// True whenever left renders — left-only OR both (V26, B4).
+				$match = in_array( $sidebar, array( 'left-sidebar', 'both-sidebars' ), true );
+				break;
+
+			case 'right_sidebar_active':
+				$match = in_array( $sidebar, array( 'right-sidebar', 'both-sidebars' ), true );
+				break;
+
+			case 'no_sidebars_active':
+				$match = ( 'no-sidebar' === $sidebar );
+				break;
+		}
+
+		return 'is_not' === $operator ? ! $match : $match;
+	}
+
+	/**
+	 * Rule keys → display labels (V11: 3 sidebar rules, membership V26).
+	 *
+	 * "Both Sidebars Active" removed (B4) — compose via Left Active AND Right Active.
+	 * Sidebar plural by count: "No Sidebars" vs singular "Left/Right Sidebar" (V11).
+	 *
+	 * @return array
+	 */
+	public function get_rules() {
+		return array(
+			'left_sidebar_active'  => __( 'Left Sidebar Active', 'bws-generate-layout-conditions' ),
+			'right_sidebar_active' => __( 'Right Sidebar Active', 'bws-generate-layout-conditions' ),
+			'no_sidebars_active'   => __( 'No Sidebars Active', 'bws-generate-layout-conditions' ),
 		);
 	}
 

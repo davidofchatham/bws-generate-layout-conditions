@@ -14,10 +14,10 @@ Spec is ahead of code. These invariants are recorded but not yet implemented.
 
 | Task | Cites | Description | Status |
 |---|---|---|---|
-| Split condition registration | V27 | Replace single `gp_layout_state` registration in `class-condition.php` with two: `gp_theme_element` ("Theme Element Status", 7 component rules) + `gp_theme_sidebar` ("Theme Sidebar", 3 sidebar rules). One class serving both registrations, or two classes. Operators `['is','is_not']` + `needs_value=false` on each. | not started |
-| Sidebar membership semantics | V26, B4 | In `evaluate()`: `left_sidebar_active` = `in_array(enum, ['left-sidebar','both-sidebars'])`; `right_sidebar_active` = `in_array(enum, ['right-sidebar','both-sidebars'])`; `no_sidebars_active` = `'no-sidebar' === enum`. Drop `both_sidebars_active` rule + case. Detector unchanged. | not started |
-| Sync CONTEXT.md to V26/V27 | V26, V27 | CONTEXT.md still describes single `gp_layout_state` condition, "Rules (11)" table with exclusive-match sidebar rows, and `Both Sidebars Active`. Update the Condition definition, the rule table (11→10, membership), and sidebar-layout language. | not started |
-| Refresh SPEC.md pointer | — | SPEC.md still reads "Build complete. Placeholder." — now false (V26/V27 pending). Repurposed as the in-flight working doc. | done — see SPEC.md |
+| Split condition registration | V27 | Two classes in `class-condition.php`: `BWS_GP_Theme_Element_Condition` (`gp_theme_element`, 7 rules) + `BWS_GP_Theme_Sidebar_Condition` (`gp_theme_sidebar`, 3 rules). Operators `['is','is_not']` + `needs_value=false` on each. | done |
+| Sidebar membership semantics | V26, B4 | `evaluate()`: left/right = `in_array(enum, [own,'both-sidebars'])`; no = `'no-sidebar' === enum`. `both_sidebars_active` dropped. Detector unchanged. | done |
+| Sync CONTEXT.md + readme to V26/V27 | V26, V27 | Updated CONTEXT.md (condition defs, rule table 11→10 membership, page-level + sidebar language), readme.txt (condition slugs, rule table, deps), README.md (file map slug). | done |
+| Refresh SPEC.md pointer | — | SPEC.md repurposed as the in-flight working doc. | done |
 
 ---
 
