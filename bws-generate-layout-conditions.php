@@ -10,6 +10,7 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Requires Plugins:  gp-premium
+ * Text Domain:       bws-generate-layout-conditions
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -40,7 +41,7 @@ function bws_glc_load_condition() {
 		require_once BWS_GLC_DIR . 'libs/plugin-update-checker/plugin-update-checker.php';
 
 		$update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-			'https://github.com/bridgewebsolutions/bws-generate-layout-conditions',
+			'https://github.com/davidofchatham/bws-generate-layout-conditions',
 			__FILE__,
 			'bws-generate-layout-conditions'
 		);

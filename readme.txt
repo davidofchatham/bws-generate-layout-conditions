@@ -35,10 +35,6 @@ Additional documentation, including the condition/body-class reference table and
 4. For the conditions, ensure **GenerateBlocks Pro** is active.
 5. Add a **Theme Element Status** or **Theme Sidebar** condition to the blocks inside your Block Elements that should hide when the matching theme element is disabled.
 
-== Frequently Asked Questions ==
-
-[TODO: add FAQ entries as questions arise]
-
 == Changelog ==
 
 = 0.1.0 =
