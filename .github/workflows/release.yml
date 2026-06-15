@@ -1,0 +1,79 @@
+name: Release
+
+# Build a distributable plugin ZIP from each version tag and attach it to a
+# GitHub Release. The plugin's PUC update checker has enableReleaseAssets() set,
+# so it serves this ZIP (a single release asset) instead of GitHub's source
+# tarball — giving a clean top-level folder with dev files stripped.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # create the Release and upload the asset
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Guard — tag matches plugin metadata
+        env:
+          SLUG: bws-generate-layout-conditions
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          fail=0
+
+          header=$(grep -ioP '^\s*\*\s*Version:\s*\K\S+' "${SLUG}.php" | head -n1)
+          if [ "$header" != "$VERSION" ]; then
+            echo "::error::Plugin header Version ($header) != tag ($VERSION)"
+            fail=1
+          fi
+
+          stable=$(grep -ioP '^\s*Stable tag:\s*\K\S+' readme.txt | head -n1)
+          if [ "$stable" != "$VERSION" ]; then
+            echo "::error::readme.txt Stable tag ($stable) != tag ($VERSION)"
+            fail=1
+          fi
+
+          exit $fail
+
+      - name: Build distributable ZIP
+        id: build
+        env:
+          SLUG: bws-generate-layout-conditions
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="dist/${SLUG}"
+          mkdir -p "$STAGE"
+
+          # Allowlist: only ship runtime files + the readme.txt PUC reads for
+          # the dashboard "View details" modal. Adding a new shippable path?
+          # List it here — dev/docs are excluded by omission, not by blocklist.
+          cp -R includes "$STAGE/"
+          cp -R libs "$STAGE/"
+          cp "${SLUG}.php" "$STAGE/"
+          cp readme.txt "$STAGE/"
+          cp LICENSE "$STAGE/"
+
+          ZIP="${SLUG}-${VERSION}.zip"
+          ( cd dist && zip -rq "../${ZIP}" "${SLUG}" )
+          echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release and upload asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "${{ steps.build.outputs.zip }}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
