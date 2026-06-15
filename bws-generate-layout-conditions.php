@@ -37,7 +37,7 @@ function bws_glc_load_condition() {
 
 	// PUC update checker — only in admin/CLI contexts to avoid front-end overhead.
 	if ( is_admin() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-		require_once BWS_GLC_DIR . 'plugin-update-checker/plugin-update-checker.php';
+		require_once BWS_GLC_DIR . 'libs/plugin-update-checker/plugin-update-checker.php';
 
 		$update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
 			'https://github.com/bridgewebsolutions/bws-generate-layout-conditions',
