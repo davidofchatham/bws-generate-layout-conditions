@@ -46,11 +46,44 @@ function bws_glc_register_conditions() {
 }
 
 /**
+ * Shared base for both condition types — Device-condition pattern (V10):
+ * no value field on any rule, operators limited to is/is_not.
+ */
+abstract class BWS_GP_No_Value_Condition extends GenerateBlocks_Pro_Condition_Abstract {
+
+	/**
+	 * No value field for any rule (V10).
+	 *
+	 * @param string $rule Rule key (unused — all rules share the same metadata).
+	 * @return array
+	 */
+	public function get_rule_metadata( $rule ) {
+		return array(
+			'needs_value' => false,
+			'value_type'  => 'none',
+		);
+	}
+
+	/**
+	 * The one operator formula for every rule (V10).
+	 *
+	 * @param string $operator 'is' or 'is_not'.
+	 * @param bool   $match    Raw rule result.
+	 * @return bool
+	 */
+	protected function apply_operator( $operator, $match ) {
+		return 'is_not' === $operator ? ! $match : $match;
+	}
+}
+
+/**
  * Theme Element Status — the 7 component disable states (V11, V27).
  *
  * Each rule true when the component is NOT disabled by config ("Active", V7).
+ * Rules, labels, and state keys all come from the Detector's signal registry (T7)
+ * — this class holds no signal enumeration of its own.
  */
-class BWS_GP_Theme_Element_Condition extends GenerateBlocks_Pro_Condition_Abstract {
+class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 
 	/**
 	 * Evaluate the condition.
@@ -65,38 +98,15 @@ class BWS_GP_Theme_Element_Condition extends GenerateBlocks_Pro_Condition_Abstra
 		$states = BWS_GP_Layout_Detector::states();
 		$match  = false;
 
-		switch ( $rule ) {
-			case 'header_active':
-				$match = ! $states['header'];
+		foreach ( BWS_GP_Layout_Detector::signals() as $key => $signal ) {
+			if ( $signal['rule'] === $rule ) {
+				// "Active" = not disabled by config (V7) — never render state.
+				$match = ! $states[ $key ];
 				break;
-
-			case 'footer_active':
-				$match = ! $states['footer'];
-				break;
-
-			case 'primary_nav_active':
-				$match = ! $states['primary_nav'];
-				break;
-
-			case 'secondary_nav_active':
-				$match = ! $states['secondary_nav'];
-				break;
-
-			case 'top_bar_active':
-				$match = ! $states['top_bar'];
-				break;
-
-			case 'featured_image_active':
-				// Config-based NOT render-based (V7). Never consult has_post_thumbnail().
-				$match = ! $states['featured_image'];
-				break;
-
-			case 'content_title_active':
-				$match = ! $states['content_title'];
-				break;
+			}
 		}
 
-		return 'is_not' === $operator ? ! $match : $match;
+		return $this->apply_operator( $operator, $match );
 	}
 
 	/**
@@ -105,28 +115,13 @@ class BWS_GP_Theme_Element_Condition extends GenerateBlocks_Pro_Condition_Abstra
 	 * @return array
 	 */
 	public function get_rules() {
-		return array(
-			'header_active'         => __( 'Header Active', 'bws-generate-layout-conditions' ),
-			'footer_active'         => __( 'Footer Active', 'bws-generate-layout-conditions' ),
-			'primary_nav_active'    => __( 'Primary Nav Active', 'bws-generate-layout-conditions' ),
-			'secondary_nav_active'  => __( 'Secondary Nav Active', 'bws-generate-layout-conditions' ),
-			'top_bar_active'        => __( 'Top Bar Active', 'bws-generate-layout-conditions' ),
-			'featured_image_active' => __( 'Featured Image Active', 'bws-generate-layout-conditions' ),
-			'content_title_active'  => __( 'Content Title Active', 'bws-generate-layout-conditions' ),
-		);
-	}
+		$rules = array();
 
-	/**
-	 * No value field for any rule — Device-condition pattern (V10).
-	 *
-	 * @param string $rule Rule key (unused — all rules share the same metadata).
-	 * @return array
-	 */
-	public function get_rule_metadata( $rule ) {
-		return array(
-			'needs_value' => false,
-			'value_type'  => 'none',
-		);
+		foreach ( BWS_GP_Layout_Detector::signals() as $signal ) {
+			$rules[ $signal['rule'] ] = $signal['label'];
+		}
+
+		return $rules;
 	}
 }
 
@@ -137,7 +132,7 @@ class BWS_GP_Theme_Element_Condition extends GenerateBlocks_Pro_Condition_Abstra
  * side renders, INCLUDING the both-sidebars layout. "Both" and "neither" are
  * composable via AND; only "no sidebars" keeps a convenience rule.
  */
-class BWS_GP_Theme_Sidebar_Condition extends GenerateBlocks_Pro_Condition_Abstract {
+class BWS_GP_Theme_Sidebar_Condition extends BWS_GP_No_Value_Condition {
 
 	/**
 	 * Evaluate the condition.
@@ -167,7 +162,7 @@ class BWS_GP_Theme_Sidebar_Condition extends GenerateBlocks_Pro_Condition_Abstra
 				break;
 		}
 
-		return 'is_not' === $operator ? ! $match : $match;
+		return $this->apply_operator( $operator, $match );
 	}
 
 	/**
@@ -183,19 +178,6 @@ class BWS_GP_Theme_Sidebar_Condition extends GenerateBlocks_Pro_Condition_Abstra
 			'left_sidebar_active'  => __( 'Left Sidebar Active', 'bws-generate-layout-conditions' ),
 			'right_sidebar_active' => __( 'Right Sidebar Active', 'bws-generate-layout-conditions' ),
 			'no_sidebars_active'   => __( 'No Sidebars Active', 'bws-generate-layout-conditions' ),
-		);
-	}
-
-	/**
-	 * No value field for any rule — Device-condition pattern (V10).
-	 *
-	 * @param string $rule Rule key (unused — all rules share the same metadata).
-	 * @return array
-	 */
-	public function get_rule_metadata( $rule ) {
-		return array(
-			'needs_value' => false,
-			'value_type'  => 'none',
 		);
 	}
 }

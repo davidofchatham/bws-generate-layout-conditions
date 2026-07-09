@@ -20,6 +20,73 @@ class BWS_GP_Layout_Detector {
 	private static $cache = null;
 
 	/**
+	 * Canonical signal registry — the single enumeration of the 7 element signals (T7).
+	 *
+	 * Every consumer derives its per-signal surface from this table:
+	 * - `states()` (detection)         → 'method'
+	 * - condition `evaluate()`/`get_rules()` → 'rule' + 'label'
+	 * - body-class emitter             → 'class'
+	 *
+	 * 'rule' slugs are persisted in saved condition data (V27) and 'class' names are
+	 * public CSS surface (ADR-0004) — both must stay byte-identical across releases.
+	 * Positive labels vs negative classes diverge on purpose (V9): both vocabularies
+	 * are stored here side by side, never derived from one another.
+	 *
+	 * Sidebar is NOT a row — different shape (enum not bool), no body class (V8),
+	 * membership semantics live in the sidebar condition (V26).
+	 *
+	 * @return array key => { method: detector method, rule: condition rule slug,
+	 *                        label: translated rule label, class: gp-no-* body class }
+	 */
+	public static function signals() {
+		return array(
+			'header'         => array(
+				'method' => 'is_header_disabled',
+				'rule'   => 'header_active',
+				'label'  => __( 'Header Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-header',
+			),
+			'footer'         => array(
+				'method' => 'is_footer_disabled',
+				'rule'   => 'footer_active',
+				'label'  => __( 'Footer Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-footer',
+			),
+			'primary_nav'    => array(
+				'method' => 'is_primary_nav_disabled',
+				'rule'   => 'primary_nav_active',
+				'label'  => __( 'Primary Nav Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-primary-nav',
+			),
+			'secondary_nav'  => array(
+				'method' => 'is_secondary_nav_disabled',
+				'rule'   => 'secondary_nav_active',
+				'label'  => __( 'Secondary Nav Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-secondary-nav',
+			),
+			'top_bar'        => array(
+				'method' => 'is_top_bar_disabled',
+				'rule'   => 'top_bar_active',
+				'label'  => __( 'Top Bar Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-top-bar',
+			),
+			'featured_image' => array(
+				// Config-based NOT render-based (V7) — see is_featured_image_disabled().
+				'method' => 'is_featured_image_disabled',
+				'rule'   => 'featured_image_active',
+				'label'  => __( 'Featured Image Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-featured-image',
+			),
+			'content_title'  => array(
+				'method' => 'is_content_title_disabled',
+				'rule'   => 'content_title_active',
+				'label'  => __( 'Content Title Active', 'bws-generate-layout-conditions' ),
+				'class'  => 'gp-no-content-title',
+			),
+		);
+	}
+
+	/**
 	 * Returns the resolved disable states for the current request.
 	 *
 	 * @return array {
@@ -38,16 +105,13 @@ class BWS_GP_Layout_Detector {
 			return self::$cache;
 		}
 
-		self::$cache = array(
-			'header'         => self::is_header_disabled(),
-			'footer'         => self::is_footer_disabled(),
-			'primary_nav'    => self::is_primary_nav_disabled(),
-			'secondary_nav'  => self::is_secondary_nav_disabled(),
-			'top_bar'        => self::is_top_bar_disabled(),
-			'featured_image' => self::is_featured_image_disabled(),
-			'content_title'  => self::is_content_title_disabled(),
-			'sidebar'        => self::get_sidebar_layout(),
-		);
+		$states = array();
+		foreach ( self::signals() as $key => $signal ) {
+			$states[ $key ] = self::{$signal['method']}();
+		}
+		$states['sidebar'] = self::get_sidebar_layout();
+
+		self::$cache = $states;
 
 		return self::$cache;
 	}

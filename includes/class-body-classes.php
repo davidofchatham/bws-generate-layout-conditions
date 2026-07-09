@@ -38,19 +38,11 @@ function bws_glc_schedule_body_classes() {
 function bws_glc_add_body_classes( $classes ) {
 	$states = BWS_GP_Layout_Detector::states();
 
-	$map = array(
-		'header'         => 'gp-no-header',
-		'footer'         => 'gp-no-footer',
-		'primary_nav'    => 'gp-no-primary-nav',
-		'secondary_nav'  => 'gp-no-secondary-nav',
-		'top_bar'        => 'gp-no-top-bar',
-		'featured_image' => 'gp-no-featured-image',
-		'content_title'  => 'gp-no-content-title',
-	);
-
-	foreach ( $map as $key => $class ) {
+	// Class names come from the Detector's signal registry (T7) — negative
+	// vocabulary stored there alongside the condition labels (V9).
+	foreach ( BWS_GP_Layout_Detector::signals() as $key => $signal ) {
 		if ( ! empty( $states[ $key ] ) ) {
-			$classes[] = $class;
+			$classes[] = $signal['class'];
 		}
 	}
 
