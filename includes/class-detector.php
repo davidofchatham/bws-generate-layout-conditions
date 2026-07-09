@@ -168,9 +168,14 @@ class BWS_GP_Layout_Detector {
 	}
 
 	private static function is_featured_image_disabled() {
-		// Hook is only added on is_singular() — absence on archives is meaningless (B2).
+		// Hook is only added on is_singular() — absence on archives is meaningless (B2),
+		// so non-singular uses config-replay instead (T8, closes the V22 gap): Layout
+		// Element "disable_featured_image" fires remove_action WITHOUT an is_singular()
+		// guard (gp-premium elements/class-layout.php:315), so it disables on archives
+		// too. Same engine as header/footer. Post-metabox layer stays correctly absent
+		// off-singular (ADR-0002).
 		if ( ! is_singular() ) {
-			return false;
+			return self::layout_element_disables( '_generate_disable_featured_image' );
 		}
 
 		// Config-based, NOT render-based (V7). Never consult has_post_thumbnail().
@@ -178,13 +183,9 @@ class BWS_GP_Layout_Detector {
 		// V21 ambiguity: Page Hero "Disable featured image" (and "Disable title" for
 		// is_content_title_disabled) removes this hook because the Hero embeds the element
 		// itself — hook absent but element is active in a different position. Hook-state
-		// wins in v1. A future toggle should let users choose hook-state vs config-replay.
-		// Do not change without that toggle — both interpretations are valid per-site.
-		//
-		// V22 gap: Layout Element "disable_featured_image" fires remove_action without
-		// is_singular() guard, so it disables on archives too. We always return false on
-		// non-singular (B2), missing that signal. Fix requires config-replay for featured
-		// image on non-singular — not implemented in v1.
+		// wins in v1 on singular. A future toggle should let users choose hook-state vs
+		// config-replay. Do not change without that toggle — both interpretations are
+		// valid per-site.
 		return ! has_action( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}
 

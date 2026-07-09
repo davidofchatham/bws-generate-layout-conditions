@@ -15,7 +15,7 @@ Active change set 2026-07-08 (see `SPEC.md`). Order = row order. Prior set (cond
 | id | st | Task | Cites | Description |
 |---|---|---|---|---|
 | T7 | x | Signal registry | V5, V8, V9, V27 | Canonical signal table in Detector: key → detector method, rule slug, positive label, `gp-no-*` class. `Condition::evaluate()`/`get_rules()` + body-class `$map` become loops over it. Persisted slugs + class names byte-identical before/after. |
-| T8 | . | Featured-image config-replay non-singular | V22 | Extend `layout_element_disables()` to `_generate_disable_featured_image`; OR into featured-image signal when `! is_singular()`. Closes V22 gap; update architecture.md signal map + V22 on land. |
+| T8 | x | Featured-image config-replay non-singular | V22 | Extend `layout_element_disables()` to `_generate_disable_featured_image`; OR into featured-image signal when `! is_singular()`. Closes V22 gap; update architecture.md signal map + V22 on land. |
 | T9 | . | Environment seam + tests | V1, V2, V5, V6 | Internal seam under Detector (~6 reads), WP/GP adapter + in-memory fake. New `composer.json` + PHPUnit. Tests exercise `states()` only. V1/V2/V5/V6 become executable. |
 | T10 | . | Approach B: PHP suppression for CSS-only toggles | V14, V24, V25 | Run `docs/proto/approach-b-snippet.php` on staging (markers + visual + GB Pro composition checks), then port into plugin: `has_nav_menu` filter (secondary nav), `remove_action` ×2 (featured image), `remove_action` (`#mobile-header`), keyed on `_generate-disable-*`, `wp:60`. Gated on staging pass. Backprop V14; Approach A obsolete. |
 
