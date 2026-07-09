@@ -19,6 +19,32 @@ class BWS_GP_Layout_Detector {
 	/** @var array|null Cached result — null until first call to states(). */
 	private static $cache = null;
 
+	/** @var BWS_GP_Environment|null Injected environment — WP adapter unless a test sets a fake (T9). */
+	private static $environment = null;
+
+	/**
+	 * The environment adapter behind the seam (T9). Lazy default: production WP adapter.
+	 *
+	 * @return BWS_GP_Environment
+	 */
+	private static function env() {
+		if ( null === self::$environment ) {
+			self::$environment = new BWS_GP_WP_Environment();
+		}
+
+		return self::$environment;
+	}
+
+	/**
+	 * Swap the environment adapter — test seam (T9). Pass null to restore the WP adapter.
+	 * Callers should also reset_cache(); states() memoizes across swaps otherwise (V5).
+	 *
+	 * @param BWS_GP_Environment|null $environment
+	 */
+	public static function set_environment( $environment ) {
+		self::$environment = $environment;
+	}
+
 	/**
 	 * Canonical signal registry — the single enumeration of the 7 element signals (T7).
 	 *
@@ -122,11 +148,8 @@ class BWS_GP_Layout_Detector {
 
 	private static function is_header_disabled() {
 		// Post-meta branch (singular only, ADR-0002).
-		if ( is_singular() ) {
-			$post_id = get_queried_object_id();
-			if ( get_post_meta( $post_id, '_generate-disable-header', true ) ) {
-				return true;
-			}
+		if ( self::post_metabox_disables( '_generate-disable-header' ) ) {
+			return true;
 		}
 
 		// Layout-Element branch: query layout posts; replay conditions + disable meta.
@@ -138,11 +161,8 @@ class BWS_GP_Layout_Detector {
 	// -----------------------------------------------------------------------
 
 	private static function is_footer_disabled() {
-		if ( is_singular() ) {
-			$post_id = get_queried_object_id();
-			if ( get_post_meta( $post_id, '_generate-disable-footer', true ) ) {
-				return true;
-			}
+		if ( self::post_metabox_disables( '_generate-disable-footer' ) ) {
+			return true;
 		}
 
 		return self::layout_element_disables( '_generate_disable_footer' );
@@ -153,18 +173,18 @@ class BWS_GP_Layout_Detector {
 	// -----------------------------------------------------------------------
 
 	private static function is_primary_nav_disabled() {
-		return (bool) has_filter( 'generate_navigation_location', '__return_false' );
+		return self::env()->has_hook( 'generate_navigation_location', '__return_false' );
 	}
 
 	private static function is_content_title_disabled() {
 		// V21 ambiguity: Page Hero "Disable title" adds this same filter because the Hero
 		// embeds the title itself — filter present but title is active via the Hero.
 		// Hook-state wins in v1. Same future toggle as featured image will apply here.
-		return (bool) has_filter( 'generate_show_title', '__return_false' );
+		return self::env()->has_hook( 'generate_show_title', '__return_false' );
 	}
 
 	private static function is_top_bar_disabled() {
-		return ! has_action( 'generate_before_header', 'generate_top_bar' );
+		return ! self::env()->has_hook( 'generate_before_header', 'generate_top_bar' );
 	}
 
 	private static function is_featured_image_disabled() {
@@ -174,7 +194,7 @@ class BWS_GP_Layout_Detector {
 		// guard (gp-premium elements/class-layout.php:315), so it disables on archives
 		// too. Same engine as header/footer. Post-metabox layer stays correctly absent
 		// off-singular (ADR-0002).
-		if ( ! is_singular() ) {
+		if ( ! self::env()->is_singular() ) {
 			return self::layout_element_disables( '_generate_disable_featured_image' );
 		}
 
@@ -186,7 +206,7 @@ class BWS_GP_Layout_Detector {
 		// wins in v1 on singular. A future toggle should let users choose hook-state vs
 		// config-replay. Do not change without that toggle — both interpretations are
 		// valid per-site.
-		return ! has_action( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
+		return ! self::env()->has_hook( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}
 
 	// -----------------------------------------------------------------------
@@ -195,14 +215,7 @@ class BWS_GP_Layout_Detector {
 	// -----------------------------------------------------------------------
 
 	private static function is_secondary_nav_disabled() {
-		if ( is_singular() ) {
-			$post_id = get_queried_object_id();
-			if ( get_post_meta( $post_id, '_generate-disable-secondary-nav', true ) ) {
-				return true;
-			}
-		}
-
-		return false;
+		return self::post_metabox_disables( '_generate-disable-secondary-nav' );
 	}
 
 	// -----------------------------------------------------------------------
@@ -210,11 +223,26 @@ class BWS_GP_Layout_Detector {
 	// -----------------------------------------------------------------------
 
 	private static function get_sidebar_layout() {
-		if ( function_exists( 'generate_get_layout' ) ) {
-			return generate_get_layout();
+		return self::env()->sidebar_layout();
+	}
+
+	// -----------------------------------------------------------------------
+	// Post-metabox helper: singular-only read from the queried object (ADR-0002)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Returns true if the queried post's Disable-Elements metabox sets $meta_key.
+	 * Off-singular the metabox layer contributes nothing (ADR-0002).
+	 *
+	 * @param string $meta_key e.g. '_generate-disable-header'
+	 * @return bool
+	 */
+	private static function post_metabox_disables( $meta_key ) {
+		if ( ! self::env()->is_singular() ) {
+			return false;
 		}
 
-		return 'no-sidebar';
+		return (bool) self::env()->post_meta( self::env()->queried_object_id(), $meta_key );
 	}
 
 	// -----------------------------------------------------------------------
@@ -231,44 +259,30 @@ class BWS_GP_Layout_Detector {
 	 * @return bool
 	 */
 	private static function layout_element_disables( $disable_meta_key ) {
-		if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
+		$env = self::env();
+
+		if ( ! $env->can_replay_conditions() ) {
 			return false;
 		}
 
-		$layout_posts = get_posts( array(
-			'post_type'      => 'gp_elements',
-			'post_status'    => 'publish',
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-			'meta_query'     => array(
-				array(
-					'key'   => '_generate_element_type',
-					'value' => 'layout',
-				),
-				array(
-					'key'     => $disable_meta_key,
-					'value'   => '',
-					'compare' => '!=',
-				),
-			),
-		) );
+		$layout_posts = $env->layout_element_ids( $disable_meta_key );
 
 		if ( empty( $layout_posts ) ) {
 			return false;
 		}
 
 		foreach ( $layout_posts as $element_id ) {
-			if ( ! get_post_meta( $element_id, $disable_meta_key, true ) ) {
+			if ( ! $env->post_meta( $element_id, $disable_meta_key ) ) {
 				continue;
 			}
 
-			// Pass all three condition meta to show_data() (V4).
-			// Normalize: get_post_meta returns '' when unset; show_data expects array-of-arrays.
-			$display  = get_post_meta( $element_id, '_generate_element_display_conditions', true ) ?: array();
-			$exclude  = get_post_meta( $element_id, '_generate_element_exclude_conditions', true ) ?: array();
-			$users    = get_post_meta( $element_id, '_generate_element_user_conditions', true ) ?: array();
+			// Pass all three condition meta to conditions_pass() (V4).
+			// Normalize: post_meta returns '' when unset; show_data expects array-of-arrays (V23).
+			$display  = $env->post_meta( $element_id, '_generate_element_display_conditions' ) ?: array();
+			$exclude  = $env->post_meta( $element_id, '_generate_element_exclude_conditions' ) ?: array();
+			$users    = $env->post_meta( $element_id, '_generate_element_user_conditions' ) ?: array();
 
-			if ( GeneratePress_Conditions::show_data( $display, $exclude, $users ) ) {
+			if ( $env->conditions_pass( $display, $exclude, $users ) ) {
 				return true;
 			}
 		}
@@ -276,7 +290,7 @@ class BWS_GP_Layout_Detector {
 		return false;
 	}
 
-	/** Reset cache — test helper only, not for production use. */
+	/** Reset memoized states — test seam (pairs with set_environment), not for production use. */
 	public static function reset_cache() {
 		self::$cache = null;
 	}

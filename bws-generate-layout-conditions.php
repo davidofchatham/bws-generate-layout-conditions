@@ -27,6 +27,7 @@ add_action( 'plugins_loaded', 'bws_glc_load_condition', 20 );
 
 function bws_glc_bootstrap() {
 	require_once BWS_GLC_DIR . 'includes/class-disable-elements.php';
+	require_once BWS_GLC_DIR . 'includes/class-environment.php';
 	require_once BWS_GLC_DIR . 'includes/class-detector.php';
 	require_once BWS_GLC_DIR . 'includes/class-body-classes.php';
 }
