@@ -3,7 +3,7 @@
  * Plugin Name:       GP Layout Conditions by BWS
  * Plugin URI:        https://github.com/davidofchatham/bws-generate-layout-conditions
  * Description:       Adds Theme condition types to GB Pro so blocks can be hidden if a corresponding theme element is disabled via Layout or post-level settings.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            David Mitchell (Bridge Web Solutions) and Claude AI
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BWS_GLC_VERSION',  '0.1.0' );
+define( 'BWS_GLC_VERSION',  '0.2.0' );
 define( 'BWS_GLC_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'BWS_GLC_URL',      plugin_dir_url( __FILE__ ) );
 define( 'BWS_GLC_BASENAME', plugin_basename( __FILE__ ) );

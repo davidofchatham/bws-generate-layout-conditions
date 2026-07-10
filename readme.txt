@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,10 @@ Additional documentation, including the condition/body-class reference table and
 5. Add a **Theme Element Status** or **Theme Sidebar** condition to the blocks inside your Block Elements that should hide when the matching theme element is disabled.
 
 == Changelog ==
+
+= 0.2.0 =
+* Featured Image disable is now detected on archive and other non-singular pages, matching how Layout Elements disable it there (previously singular-only).
+* Internal: single canonical signal table drives conditions, body classes, and detection; environment seam under the detector with a PHPUnit test suite. No change to condition names, rules, or body-class names.
 
 = 0.1.0 =
 * Initial release.
