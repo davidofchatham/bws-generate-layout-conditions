@@ -38,8 +38,7 @@ Additional documentation, including the condition/body-class reference table and
 == Changelog ==
 
 = 0.2.1 =
-* Fixed: three per-post Disable Elements toggles (Featured Image, Secondary Navigation, and the mobile header bar under Primary Navigation) were only ever hidden with CSS by GeneratePress, never removed from the page. They are now properly removed, so these toggles keep working with the CSS disabled and the content is genuinely gone rather than just visually hidden.
-* Fixed: the post-level `display:none` was never actually being disabled. GP Premium defines the function this plugin overrides earlier in the load process, so the override never took effect on any request and GeneratePress kept hiding wrappers with CSS. The override now loads early enough to win, and the plugin shows an admin notice if anything ever prevents it.
+* Fixed: the post-level `display:none` was never actually being disabled. GP Premium defines the function this plugin overrides earlier in the load process, so the override never took effect on any request and GeneratePress kept hiding wrappers with CSS. The override now loads early enough to win, and the plugin shows an admin notice if anything ever prevents it. As part of this, three per-post Disable Elements toggles (Featured Image, Secondary Navigation, and the mobile header bar under Primary Navigation) are now properly removed from the page rather than merely hidden with CSS, so they keep working once that CSS is gone and the content is genuinely absent rather than just invisible.
 
 = 0.2.0 =
 * Featured Image disable is now detected on archive and other non-singular pages, matching how Layout Elements disable it there (previously singular-only).
