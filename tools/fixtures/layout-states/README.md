@@ -39,7 +39,7 @@ them. These fixtures make them falsifiable:
 | `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
 
-## The three test files, and the difference
+## The four test files, and the difference
 
 `verify.php` asserts the **fixtures** landed and discriminate — so a suite
 failure means "the Detector regressed", not "the fixture seeded nothing".
@@ -80,6 +80,34 @@ tautology. The header explains this at length — read it before editing.
 Mutation-checked: reverting `is_header_disabled()` to read hook state fails
 exactly one assertion, with a message naming the cause.
 
+`render-surface.sh` is the only one that is **not** wp-cli — it asserts on real
+HTTP responses, because several invariants here are structurally invisible from
+the CLI. 18 assertions:
+
+| Section | Pins |
+|---|---|
+| preconditions | The response is complete HTML, and the baseline renders a featured image, both nav wrappers, and `#mobile-header`. Hard-aborts otherwise: every assertion below is presence/absence against a body, so an empty or truncated response would make the absence checks pass vacuously. |
+| V12 neutralize | GP's three literal `display:none` rule strings are ABSENT on pages whose toggle is on. Matching the exact upstream strings, not a generic `display:none` — theme and block CSS emit unrelated ones on every page including the control. |
+| V24 | Both directions: CSS-only toggles (featured image, secondary nav) leave markup fully present; the PHP-removed one (content title) does not. Asserting only one direction would let "PHP-removed everything" or "removed nothing" pass half the suite. |
+| V25 | On the primary-nav page, `#site-navigation` is gone (PHP path) while `#mobile-header` survives — the documented partial-CSS regression, observed for the first time at blueprint v2. |
+| control | The baseline renders every marker the sections above assert the absence of. Without it, a change that removed these elements everywhere would pass the whole suite. |
+
+**Two caches will lie to you**, and both produce false GREENS rather than
+noisy failures:
+
+* **LiteSpeed** serves `x-litespeed-cache: hit` freely. Every request here
+  carries a nonce query arg.
+* **opcache**, the nastier one: `opcache.revalidate_freq=120` means PHP
+  re-checks mtimes at most every 2 minutes, so a page fetched shortly after an
+  edit is rendered by the *previous* bytecode. It is asymmetric —
+  `opcache.enable_cli=Off`, so wp-cli reads fresh source and a CLI check can
+  contradict a render, with the CLI correct. A mutation test of this harness
+  passed 18/18 against stale bytecode while the plugin was demonstrably broken.
+  The script now recycles lsphp before asserting; do not remove that step.
+
+Mutation-checked: reverting the neutralize to a hook-time load fails exactly the
+three V12 assertions, each naming the cause.
+
 Run by `bin/seed-all.sh` automatically when present; other blueprints without
 the file are unaffected.
 
@@ -113,8 +141,24 @@ bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixture
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/poisoned-signal.php
 ```
 
+Plus the render harness, which is bash rather than eval-file and takes the site
+by name:
+
+```bash
+tools/fixtures/layout-states/render-surface.sh --site <site>
+```
+
 `poisoned-signal.php` mutates process-global hook state by design, so it runs
-**last** and in its own process. Do not fold its assertions into another file.
+**last** among the eval-file suites and in its own process. Do not fold its
+assertions into another file.
+
+**Blueprint v2 is required** for the render harness. v1 fixtures cannot support
+it: no page carried a featured image, no menu was assigned to either nav
+location, and `generate_menu_plus_settings` was written with `set_theme_mod()`
+while GP Premium reads it exclusively via `get_option()` (~20 call sites, zero
+`get_theme_mod`) — so the mobile header was never enabled. Each of those absences
+turns a specific assertion into a vacuous pass, which is why the harness checks
+all four before asserting anything.
 
 Or via the orchestrator, which runs the whole family in compose order:
 `bin/seed-all.sh <site>`.

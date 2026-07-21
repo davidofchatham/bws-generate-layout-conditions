@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 1,
+	'version'   => 2,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -38,7 +38,11 @@ return array(
 		'post_types'    => array(),
 		'acf_groups'    => array(),
 		'slug_prefix'   => 'ls-',
-		'theme_mods'    => array( 'generate_menu_plus_settings' ),
+		'options'       => array( 'generate_menu_plus_settings' ),
+		// Shared with any blueprint that assigns menus. Claimed here because a
+		// blueprint that replaces (rather than merges) this map would silently
+		// unassign the fixture nav and make the V24 nav surfaces vacuous again.
+		'nav_locations' => array( 'primary', 'secondary' ),
 	),
 
 	// GP Premium module options that must be 'activated' for the seeded
@@ -232,6 +236,11 @@ return array(
 	// `disable_meta` is the GP Premium per-post Disable-Elements METABOX layer
 	// (`_generate-disable-*`, note the HYPHENS — distinct from the underscored
 	// element meta above). This is the layer CSS-neutralize touches (V12/V24).
+	//
+	// `featured_image => true` (v2) attaches the shared fixture attachment as the
+	// page thumbnail. Only needed where a render assertion looks at the featured
+	// -image surface — for the toggle page and its control. Everywhere else the
+	// thumbnail is irrelevant and omitted.
 	// -----------------------------------------------------------------------
 	'pages' => array(
 
@@ -240,6 +249,11 @@ return array(
 		'ls-page-baseline' => array(
 			'post_title' => 'LS: Baseline (nothing disabled)',
 			'post_name'  => 'ls-page-baseline',
+			// Carries a thumbnail so it is a real CONTROL for the featured-image
+			// surface: the image must be present here and absent (or hidden) on
+			// ls-page-metabox-featured. Without it both pages render no image and
+			// the comparison is vacuous. See `featured_image` below.
+			'featured_image' => true,
 		),
 
 		// Carries the header+footer Block Elements (V2). Nothing is actually
@@ -276,6 +290,12 @@ return array(
 			'post_title'   => 'LS: Metabox — disable featured image (CSS-only)',
 			'post_name'    => 'ls-page-metabox-featured',
 			'disable_meta' => array( '_generate-disable-post-image' => 'true' ),
+			// Load-bearing (added v2). The toggle only has an observable effect
+			// on a page that HAS a featured image — with no thumbnail, GP renders
+			// no .page-header-image-single either way and the V24 assertion
+			// passes without testing anything. This is the primary CSS-only
+			// regression surface, so a vacuous pass here is the worst case.
+			'featured_image' => true,
 		),
 
 		// V24 — CSS-only. Full regression surface.
@@ -341,9 +361,23 @@ return array(
 	),
 
 	// -----------------------------------------------------------------------
-	// Theme mods / options this blueprint sets.
+	// Site OPTIONS this blueprint sets.
+	//
+	// Was `theme_mods` through v1, and that was a real bug, not a naming
+	// preference: GP Premium reads generate_menu_plus_settings exclusively via
+	// get_option() (~20 call sites across menu-plus, elements, disable-elements
+	// and the customizer; ZERO get_theme_mod calls). set_theme_mod() writes to
+	// theme_mods[...] in a different row, which GP never reads — so the setting
+	// below silently did nothing from v1 until v2.
+	//
+	// The consequence was exactly what the comment below warned about: with
+	// mobile_header defaulting to 'disable' (generate_menu_plus_get_defaults),
+	// <nav id="mobile-header"> never rendered, so V25 had never once been
+	// observed on this testbed. It was documented from reading GP's source, not
+	// from seeing the wrapper. Treat the invariant as unconfirmed until a render
+	// assertion has actually seen it.
 	// -----------------------------------------------------------------------
-	'theme_mods' => array(
+	'options' => array(
 		// V25 requires the Menu Plus mobile header ACTIVE — the whole
 		// invariant is about the `<nav id="mobile-header">` wrapper surviving
 		// the PHP disable path and being hidden by CSS alone. With this off,
@@ -352,6 +386,26 @@ return array(
 			'mobile_header'      => 'enable',
 			'mobile_header_logo' => '',
 			'sticky_menu'        => 'false',
+		),
+	),
+
+	// -----------------------------------------------------------------------
+	// Nav menus. Added in v2 for the render harness (T11).
+	//
+	// GP renders <nav id="site-navigation"> and <nav id="secondary-navigation">
+	// only when a menu is ASSIGNED to that location. Through v1 no menu existed,
+	// so both wrappers were absent from every page — and a render assertion
+	// looking for their absence under a disable toggle would have passed on
+	// every page including the control, proving nothing.
+	//
+	// One shared menu assigned to both locations is enough: these fixtures care
+	// whether the wrapper renders, never what is inside it.
+	// -----------------------------------------------------------------------
+	'nav_menus' => array(
+		'ls-nav' => array(
+			'name'      => 'LS: Fixture Nav',
+			'locations' => array( 'primary', 'secondary' ),
+			'items'     => array( 'LS Nav Item' ),
 		),
 	),
 

@@ -136,6 +136,64 @@ $write_meta = function ( $post_id, array $meta ) {
 	}
 };
 
+/**
+ * The shared fixture attachment, used as a featured image (v2). Created once and
+ * reused; returns its ID.
+ *
+ * Generates its own 1x1 PNG rather than depending on a file in the repo or on
+ * core-structures' media: the render harness only needs a thumbnail to EXIST so
+ * GP emits .page-header-image-single. What the pixels are is irrelevant, and a
+ * self-contained fixture cannot be broken by another blueprint's reseed.
+ *
+ * Keyed on post_name like every other fixture here, so re-running upserts rather
+ * than piling up attachments.
+ */
+$ensure_attachment = function () use ( $log ) {
+	$existing = get_posts( array(
+		'post_type'      => 'attachment',
+		'name'           => 'ls-fixture-image',
+		'post_status'    => 'inherit',
+		'posts_per_page' => 1,
+		'fields'         => 'ids',
+	) );
+
+	if ( $existing ) {
+		return (int) $existing[0];
+	}
+
+	// Minimal valid 1x1 PNG. Inline so the fixture carries no binary asset.
+	$png = base64_decode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+	);
+
+	$uploaded = wp_upload_bits( 'ls-fixture-image.png', null, $png );
+
+	if ( ! empty( $uploaded['error'] ) ) {
+		WP_CLI::error( 'could not write fixture image: ' . $uploaded['error'] );
+	}
+
+	$id = wp_insert_attachment(
+		array(
+			'post_title'     => 'LS: Fixture Image',
+			'post_name'      => 'ls-fixture-image',
+			'post_mime_type' => 'image/png',
+			'post_status'    => 'inherit',
+		),
+		$uploaded['file']
+	);
+
+	if ( is_wp_error( $id ) || ! $id ) {
+		WP_CLI::error( 'could not insert fixture attachment' );
+	}
+
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $uploaded['file'] ) );
+
+	$log( sprintf( 'attachment %-32s #%d (fixture image)', 'ls-fixture-image', $id ) );
+
+	return (int) $id;
+};
+
 // ---------------------------------------------------------------------------
 // 1. Pages first — elements reference them by ID in display conditions.
 // ---------------------------------------------------------------------------
@@ -155,6 +213,12 @@ foreach ( $manifest['pages'] as $slug => $page ) {
 
 	if ( ! empty( $page['sidebar_layout'] ) ) {
 		update_post_meta( $id, '_generate-sidebar-layout-meta', $page['sidebar_layout'] );
+	}
+
+	// Featured image (v2). Only where a render assertion needs the surface to
+	// exist — see the manifest note on why the CONTROL page needs one too.
+	if ( ! empty( $page['featured_image'] ) ) {
+		set_post_thumbnail( $id, $ensure_attachment() );
 	}
 
 	$log( sprintf( 'page %-32s #%d', $slug, $id ) );
@@ -231,20 +295,89 @@ foreach ( $manifest['elements'] as $slug => $element ) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Theme mods.
+// 3. Site options.
+//
+// v1 wrote these with set_theme_mod(). That was a BUG, not a style choice: GP
+// Premium reads generate_menu_plus_settings only through get_option() (~20 call
+// sites, zero get_theme_mod), so the value landed in a row nothing reads and the
+// mobile header stayed at its 'disable' default. V25's subject — the
+// <nav id="mobile-header"> wrapper — therefore never rendered on this testbed,
+// and any V25 assertion written before v2 would have passed vacuously.
 //
 // Merged, not replaced: GP's Menu Plus settings carry defaults this blueprint
 // has no opinion on, and clobbering them would make the fixture set responsible
 // for GP's entire settings schema.
 // ---------------------------------------------------------------------------
-foreach ( $manifest['theme_mods'] as $mod => $value ) {
+foreach ( $manifest['options'] as $option => $value ) {
 	if ( is_array( $value ) ) {
-		$existing = get_theme_mod( $mod, array() );
+		$existing = get_option( $option, array() );
 		$value    = array_merge( is_array( $existing ) ? $existing : array(), $value );
 	}
 
-	set_theme_mod( $mod, $value );
-	$log( 'theme_mod ' . $mod . ' merged' );
+	update_option( $option, $value );
+	$log( 'option ' . $option . ' merged' );
+}
+
+// Clean up the v1 theme_mod so a site seeded by both versions does not keep a
+// stale row that looks authoritative but is read by nothing.
+if ( false !== get_theme_mod( 'generate_menu_plus_settings', false ) ) {
+	remove_theme_mod( 'generate_menu_plus_settings' );
+	$log( 'removed stale v1 theme_mod generate_menu_plus_settings (never read by GP)' );
+}
+
+// ---------------------------------------------------------------------------
+// 3b. Nav menus (v2).
+//
+// GP renders <nav id="site-navigation"> / <nav id="secondary-navigation"> only
+// when a menu is ASSIGNED to that location. With none assigned, both wrappers
+// are absent everywhere — so a render assertion checking that a disable toggle
+// removes one would pass on the control page too, proving nothing.
+// ---------------------------------------------------------------------------
+foreach ( $manifest['nav_menus'] as $slug => $menu ) {
+	$term = wp_get_nav_menu_object( $slug );
+
+	if ( ! $term ) {
+		$menu_id = wp_create_nav_menu( $menu['name'] );
+
+		if ( is_wp_error( $menu_id ) ) {
+			WP_CLI::error( 'could not create nav menu ' . $slug . ': ' . $menu_id->get_error_message() );
+		}
+
+		// wp_create_nav_menu() names the term from the label; force the slug so
+		// the lookup above is stable across re-runs and retitles.
+		wp_update_term( (int) $menu_id, 'nav_menu', array( 'slug' => $slug ) );
+		$term = wp_get_nav_menu_object( (int) $menu_id );
+	}
+
+	$menu_id = (int) $term->term_id;
+
+	// Items: only seeded when the menu is empty. A nav location with a menu that
+	// has NO items still renders nothing in some themes, so at least one item is
+	// required for the wrapper to be observable.
+	if ( ! wp_get_nav_menu_items( $menu_id ) ) {
+		foreach ( $menu['items'] as $title ) {
+			wp_update_nav_menu_item( $menu_id, 0, array(
+				'menu-item-title'  => $title,
+				'menu-item-url'    => home_url( '/' ),
+				'menu-item-status' => 'publish',
+			) );
+		}
+	}
+
+	// Merge into existing locations rather than replacing the whole map: other
+	// blueprints on this site may own locations this one has no opinion about.
+	$locations = get_nav_menu_locations();
+	foreach ( $menu['locations'] as $location ) {
+		$locations[ $location ] = $menu_id;
+	}
+	set_theme_mod( 'nav_menu_locations', $locations );
+
+	$log( sprintf(
+		'nav_menu %-32s #%d → %s',
+		$slug,
+		$menu_id,
+		implode( ', ', $menu['locations'] )
+	) );
 }
 
 // ---------------------------------------------------------------------------

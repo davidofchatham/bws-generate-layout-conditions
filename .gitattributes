@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Shell scripts run inside Linux containers — CRLF makes them unexecutable
+# ("bad interpreter: /usr/bin/env bash^M"), so pin LF regardless of core.autocrlf.
+*.sh text eol=lf
