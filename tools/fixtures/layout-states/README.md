@@ -39,7 +39,7 @@ them. These fixtures make them falsifiable:
 | `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
 
-## The two test files, and the difference
+## The three test files, and the difference
 
 `verify.php` asserts the **fixtures** landed and discriminate — so a suite
 failure means "the Detector regressed", not "the fixture seeded nothing".
@@ -58,6 +58,27 @@ breaks. It tests the adapter, never the Detector. 28 assertions:
 | V23 (inside the above) | Proves raw `''` meta really is fatal — currently `TypeError: in_array(): Argument #2 ($haystack) must be of type array, string given` — and that `?: array()` fixes it. If upstream ever tolerates `''`, the first arm stops throwing and this **reports** it, rather than the normalization quietly becoming dead code. |
 | `sidebar_layout()` | All four seeded layouts return exactly the documented enum. A value outside it is flagged distinctly from a wrong-but-valid value: V26's membership math is unsafe in the first case, merely wrong in the second. |
 | request-state | `is_singular()` / `queried_object_id()` on both a page **and** the `department:sales` archive — the non-singular branch (V22/T8) is unreachable if that goes true. Plus `post_meta()` returning `''` for unset (the V23 premise) and `has_hook()` against a known core callback. |
+
+`poisoned-signal.php` asserts the **premise** the other two take for granted:
+that the hook signal for header/footer really is poisoned, and that config-replay
+really does route around it. It is the only file that touches both the seam and
+the Detector, because the point it proves spans them. 20 assertions:
+
+| Section | Pins |
+|---|---|
+| preconditions | Fixtures present, Elements module on, and — load-bearing — that the two Block Elements carry **no** disable meta. If someone adds any, the poisoning becomes indistinguishable from a real disable and the file would pass while proving nothing. |
+| unpoisoned control | `generate_construct_header` / `_footer` are attached on `ls-page-baseline`, and the Detector reports both active. Without this arm, a global bug that strips the constructs would make the next section pass for the wrong reason. |
+| the poison | Visiting `ls-page-poisoned` instantiates the Block Elements, whose unconditional `remove_action()` (`class-block.php:169-175`) strips both constructs. Reproduces V2's observation as an executable fact. |
+| hook-state vs config-replay | States the false positive as an assertion — hook-state *would* report DISABLED, the Detector reports ACTIVE — then proves config-replay still discriminates on `ls-page-layout-disabled`, so "always active" can't fake a pass. |
+
+**Order is load-bearing.** `remove_action()` is process-global and this runs in
+one process, so the control arm must be asserted before anything visits
+`ls-page-poisoned`. The file re-checks the hooks immediately before poisoning
+them, so a reordering fails loudly instead of turning the control into a
+tautology. The header explains this at length — read it before editing.
+
+Mutation-checked: reverting `is_header_disabled()` to read hook state fails
+exactly one assertion, with a message naming the cause.
 
 Run by `bin/seed-all.sh` automatically when present; other blueprints without
 the file are unaffected.
@@ -89,7 +110,11 @@ running GP Premium with the Elements module off hits the same
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/seed.php
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/verify.php
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/seam-fidelity.php
+bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/poisoned-signal.php
 ```
+
+`poisoned-signal.php` mutates process-global hook state by design, so it runs
+**last** and in its own process. Do not fold its assertions into another file.
 
 Or via the orchestrator, which runs the whole family in compose order:
 `bin/seed-all.sh <site>`.

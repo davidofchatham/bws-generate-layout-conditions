@@ -11,7 +11,7 @@ These are the testable rules the codebase must uphold. Numbered monotonically; n
 | ID | Invariant |
 |---|---|
 | V1 | Combined disable state = pure OR across layers (Customizer, Layout Element, post metabox). A layer can only disable, never re-enable. |
-| V2 | Header + footer use **config-replay**, not hook-state. Hook signal poisoned: Block Element `remove_action`s native construct unconditionally → `! has_action` reads "disabled" on every page with the element. (ADR-0001) |
+| V2 | Header + footer use **config-replay**, not hook-state. Hook signal poisoned: Block Element `remove_action`s native construct unconditionally → `! has_action` reads "disabled" on every page with the element. (ADR-0001) Executable: `tools/fixtures/layout-states/poisoned-signal.php` (T13) reproduces the poisoning and asserts config-replay routes around it. |
 | V3 | Post-meta reads guard `is_singular()` AND read `get_queried_object_id()`, never `get_the_ID()` (drifts in loop inside `do_blocks()`). (ADR-0002) |
 | V4 | Config-replay passes ALL three condition meta to `show_data()` (display + exclude + users) — else false positives on excluded pages. |
 | V5 | Detector lazy + memoized: full resolution runs ≤1× per request, cached in static. First call always after `wp` → no invalidation needed. |
