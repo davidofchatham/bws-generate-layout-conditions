@@ -1,5 +1,25 @@
 <?php
 /**
+ * SUPERSEDED 2026-07-21 — Approach B SHIPPED. Do not deploy this.
+ *
+ * T10 landed the real implementation in `includes/class-disable-elements.php`,
+ * verified by `tools/fixtures/layout-states/render-surface.sh` (26 assertions,
+ * mutation-checked). This file was never run as a staging step: the render
+ * harness made the mu-plugin + View-Source loop redundant, so the mechanism went
+ * straight from source-verified to ported-and-asserted.
+ *
+ * Kept for provenance — it is where the three mechanisms were first worked out,
+ * and the shipped code follows it closely. Two things the shipped version knows
+ * that this file does not:
+ *   - The HTML-comment markers below are unnecessary; the harness asserts on the
+ *     actual absence of `page-header-image` / `#secondary-navigation` /
+ *     `#mobile-header`, which is a stronger claim than "my code ran".
+ *   - The GB Pro composition check described below needs no live site: double
+ *     remove_action is a silent no-op (verified) and paired has_nav_menu filters
+ *     are idempotent, so composition is OR-semantics by construction.
+ *
+ * ---- original header ----
+ *
  * THROWAWAY PROTOTYPE — Approach B (convert CSS-only disable toggles to PHP suppression).
  * Deploy via Code Snippets (or mu-plugin) on STAGING only. Not part of the plugin.
  *

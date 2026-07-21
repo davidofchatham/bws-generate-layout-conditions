@@ -23,6 +23,92 @@ if ( ! function_exists( 'generate_disable_elements' ) ) {
 	}
 }
 
+/*
+ * PHP suppression for the toggles the neutralize left CSS-only (T10 / V14, V24, V25).
+ *
+ * The neutralize above deletes GP's display:none rules. For toggles GP also
+ * removes in PHP that costs nothing — the markup was already gone. For three it
+ * is a regression: the CSS was the ONLY thing hiding them, so neutralizing it
+ * re-exposes content the user asked to hide (V24, V25). This closes that by
+ * removing the markup instead of hiding it, which is what the toggles should
+ * have done in the first place.
+ *
+ * Keyed on the same `_generate-disable-*` metabox meta GP's own CSS path reads,
+ * so the toggle semantics are unchanged — only the mechanism differs.
+ *
+ * Mechanism per surface, each matching what GP itself does elsewhere:
+ *   - Secondary nav   -> has_nav_menu filter. GP's Layout Element uses this exact
+ *                        filter with an identical body (class-layout.php:312,534).
+ *                        Preferred over remove_action on the render: the same
+ *                        gate gores the enqueue (secondary-nav/functions.php:40),
+ *                        body classes (:837) and color scripts (:1181), so
+ *                        filtering cleans up the satellite CSS/classes too rather
+ *                        than orphaning them.
+ *   - Featured image  -> remove_action x2 (featured-images.php:96 page header,
+ *                        :114 inside-single). GP's metabox module has no PHP path
+ *                        for this at all — hence the V24 regression.
+ *   - #mobile-header  -> remove_action (generate-menu-plus.php:1070). V25: the
+ *                        primary-nav toggle PHP-kills the SOURCE nav but leaves
+ *                        the <nav id="mobile-header"> wrapper, gated only on
+ *                        mobile_header !== 'disable' (:1082) and hidden by CSS.
+ *
+ * Priority 60 on `wp`: after GP's own metabox setup (generate_disable_elements_setup,
+ * wp:50) and after the Elements loader (wp:10), while every target renders later
+ * during the template (generate_after_header / generate_before_content). GP's
+ * Layout Element does its equivalent work at wp:100, which is also later than the
+ * render hooks bind but earlier than they fire.
+ *
+ * Composing with a GB Pro / GP Layout Element on the same surface is safe and
+ * gives OR semantics for free: a second remove_action for an already-removed
+ * callback returns false with no warning, and two has_nav_menu filters both
+ * returning false are idempotent. Verified on testbed, not assumed.
+ */
+add_action( 'wp', 'bws_glc_suppress_css_only_disables', 60 );
+
+function bws_glc_suppress_css_only_disables() {
+	// V3: get_queried_object_id(), never get_the_ID() — this fires outside the
+	// loop, where get_the_ID() reports whatever post was last touched.
+	if ( is_admin() || ! is_singular() ) {
+		return;
+	}
+
+	$id = get_queried_object_id();
+
+	if ( ! $id ) {
+		return;
+	}
+
+	if ( get_post_meta( $id, '_generate-disable-secondary-nav', true ) ) {
+		add_filter( 'has_nav_menu', 'bws_glc_disable_secondary_nav', 10, 2 );
+	}
+
+	if ( get_post_meta( $id, '_generate-disable-post-image', true ) ) {
+		remove_action( 'generate_after_header', 'generate_featured_page_header', 10 );
+		remove_action( 'generate_before_content', 'generate_featured_page_header_inside_single', 10 );
+	}
+
+	if ( get_post_meta( $id, '_generate-disable-nav', true ) ) {
+		remove_action( 'generate_after_header', 'generate_menu_plus_mobile_header', 5 );
+	}
+}
+
+/**
+ * Report the secondary nav location as unassigned, so GP skips rendering it.
+ *
+ * Mirrors GeneratePress_Premium_Layout::disable_secondary_navigation().
+ *
+ * @param bool   $has_nav_menu The existing value.
+ * @param string $location     The location being checked.
+ * @return bool
+ */
+function bws_glc_disable_secondary_nav( $has_nav_menu, $location ) {
+	if ( 'secondary' === $location ) {
+		return false;
+	}
+
+	return $has_nav_menu;
+}
+
 /**
  * Verify the neutralize actually took effect, and say so when it did not.
  *

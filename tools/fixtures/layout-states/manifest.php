@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 2,
+	'version'   => 3,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -303,6 +303,11 @@ return array(
 			'post_title'   => 'LS: Metabox — disable secondary nav (CSS-only)',
 			'post_name'    => 'ls-page-metabox-secondary-nav',
 			'disable_meta' => array( '_generate-disable-secondary-nav' => 'true' ),
+			// Added v3 for T10's over-suppression check: that assertion looks for
+			// the featured image STILL rendering under a different toggle, so
+			// without a thumbnail here it passes against a page that renders no
+			// image either way — vacuous in the same manner as the v1 nav bug.
+			'featured_image' => true,
 		),
 
 		// V25 — PARTIAL. `_generate-disable-nav` PHP-kills the source nav, but
@@ -314,6 +319,9 @@ return array(
 			'post_title'   => 'LS: Metabox — disable primary nav (V25 mobile-header)',
 			'post_name'    => 'ls-page-metabox-nav',
 			'disable_meta' => array( '_generate-disable-nav' => 'true' ),
+			// Added v3 — see the note on ls-page-metabox-secondary-nav. Same
+			// vacuous-pass risk for T10's over-suppression assertion.
+			'featured_image' => true,
 		),
 
 		// PHP-removed toggles — CSS redundant, so neutralize is a NO-OP here.

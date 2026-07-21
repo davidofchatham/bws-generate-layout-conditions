@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# layout-states — render-level test harness (T11 / V14, V24, V25).
+# layout-states — render-level test harness (T11 + T10 / V14, V24, V25).
 #
 # Asserts on RENDERED HTML. Everything else in this blueprint runs under wp-cli,
 # and for these invariants wp-cli is structurally blind:
@@ -22,10 +22,20 @@
 #   tools/fixtures/layout-states/render-surface.sh --site testbed
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-states seeded at blueprint v2+ — v1
-# fixtures cannot support these assertions (no featured image, no nav menus, and
-# the Menu Plus mobile header never enabled; see the manifest's `options` note).
-# The script verifies that rather than trusting it.
+# pass --env-root. Preconditions: layout-states seeded at blueprint v3+ — v1 and
+# v2 fixtures cannot support these assertions (v1: no featured image, no nav
+# menus, Menu Plus mobile header never enabled; v2: no thumbnail on the two
+# nav-toggle pages, which makes T10's over-suppression checks vacuous). The
+# script verifies all of that rather than trusting it.
+#
+# TWO ERAS OF ASSERTION, and the difference matters when reading a failure:
+#   * T11 assertions CHARACTERIZE the pre-T10 surface — which toggles GP leaves
+#     CSS-only, and that the neutralize is live.
+#   * T10 assertions (sections 2, 3 and 5) are the INVERSE of what T11 originally
+#     asserted for the three CSS-only surfaces. T11 proved the markup SURVIVED —
+#     that was the V14 regression. T10 removes it in PHP, so the same fixtures now
+#     prove it is GONE. A failure there means the suppression did not run; section
+#     5 is what distinguishes "did not run" from "ran too broadly".
 #
 set -euo pipefail
 
@@ -181,6 +191,20 @@ for name in FEATURED SECNAV NAV PHPREM; do
     [ -n "${body}" ] || err "empty response for ${name} — aborting rather than asserting against nothing"
 done
 
+# Blueprint v3 precondition. T10's over-suppression checks (section 5) assert the
+# featured image STILL renders on the two nav-toggle pages; at v2 neither carried
+# a thumbnail, so both passed against pages that render no image under any
+# condition. Checked here rather than trusted, same as the v2 preconditions above.
+case "${SECNAV}" in
+    *'page-header-image'*) ok 'secondary-nav fixture renders a featured image (v3)' ;;
+    *) err 'ls-page-metabox-secondary-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
+esac
+
+case "${NAV}" in
+    *'page-header-image'*) ok 'primary-nav fixture renders a featured image (v3)' ;;
+    *) err 'ls-page-metabox-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
+esac
+
 RULE_IMAGE='.generate-page-header, .page-header-image, .page-header-image-single {display:none}'
 RULE_SECNAV='#secondary-navigation {display:none}'
 RULE_NAV='#site-navigation,.navigation-clone, #mobile-header {display:none !important}'
@@ -212,16 +236,32 @@ esac
 echo ""
 echo "2. V24 — CSS-only vs PHP-removed"
 
-# Featured Image: CSS-only. Markup must survive with the toggle ON.
+# Featured Image + Secondary Nav were the CSS-only surfaces (V24). Since T10 the
+# plugin removes them in PHP, so the markup must now be GONE with the toggle ON.
+#
+# These two assertions are INVERTED relative to the pre-T10 baseline, deliberately.
+# Before T10 they asserted the markup SURVIVED — that was the regression surface
+# being characterized. T10 closes it, so the same fixtures now prove the opposite.
+# A failure here means the suppression did not run; see section 5 for whether it
+# ran too broadly.
+# Matched on the `page-header-image` WRAPPER, not the attachment filename.
+#
+# The filename is the obvious marker and it is wrong for an ABSENCE check: the
+# thumbnail URL also appears in og:image, twitter:image and Yoast's JSON-LD
+# ImageObject, all emitted from post meta whether or not the image renders. A
+# filename grep therefore reports "still present" against a page where the image
+# is provably gone — which it did, as the first red run of this assertion.
+#
+# The wrapper class is emitted only by the render path itself
+# (featured-images.php generate_featured_page_header_area), so it discriminates.
 case "${FEATURED}" in
-    *'ls-fixture-image'*) ok 'CSS-only: featured image markup still present with toggle ON (V24 regression surface, confirmed)' ;;
-    *) bad 'featured image markup is GONE with the toggle on — V24 says this toggle is CSS-only with no PHP removal. Upstream may have added a PHP path; re-read V24 before changing this expectation.' ;;
+    *'page-header-image'*) bad 'featured image markup still present with toggle ON — T10 PHP suppression did not run. Check the wp:60 hook and that _generate-disable-post-image is set on this fixture.' ;;
+    *) ok 'T10: featured image PHP-removed with toggle ON (V24 regression closed)' ;;
 esac
 
-# Secondary Nav: CSS-only. Wrapper must survive.
 case "${SECNAV}" in
-    *'id="secondary-navigation"'*) ok 'CSS-only: #secondary-navigation still present with toggle ON (V24 regression surface, confirmed)' ;;
-    *) bad '#secondary-navigation is GONE with the toggle on — V24 says CSS-only. Upstream may have added PHP removal.' ;;
+    *'id="secondary-navigation"'*) bad '#secondary-navigation still present with toggle ON — T10 has_nav_menu filter did not apply.' ;;
+    *) ok 'T10: #secondary-navigation PHP-removed with toggle ON (V24 regression closed)' ;;
 esac
 
 # Content title: PHP-removed. Markup must be gone, so neutralize is a no-op.
@@ -255,9 +295,17 @@ case "${NAV}" in
     *) ok 'PHP-removed: #site-navigation absent with toggle ON' ;;
 esac
 
+# INVERTED by T10, same as the two above. V25's wrapper survived GP's PHP path
+# and was hidden by CSS alone; the plugin now removes it outright.
+#
+# The V25 claim itself is NOT retired by this — it is still what makes the
+# suppression necessary. Section 0 proves the wrapper renders on baseline (so the
+# mobile header is genuinely on), which is what keeps this assertion honest: if
+# the mobile header were simply disabled, this would pass while proving nothing,
+# and the baseline precondition is what rules that out.
 case "${NAV}" in
-    *'id="mobile-header"'*) ok 'V25 CONFIRMED: #mobile-header wrapper SURVIVES the PHP path and is re-exposed once its CSS is neutralized (the documented regression)' ;;
-    *) bad 'V25 NOT reproduced: #mobile-header is absent with the toggle on, so the wrapper is not CSS-load-bearing after all. Either upstream changed generate-menu-plus.php, or the mobile header is off. V25 needs rewriting — do not just delete this assertion.' ;;
+    *'id="mobile-header"'*) bad '#mobile-header wrapper still present with the primary-nav toggle ON — T10 remove_action on generate_menu_plus_mobile_header did not apply. This is the V25 regression, still open.' ;;
+    *) ok 'T10: #mobile-header wrapper PHP-removed with toggle ON (V25 regression closed)' ;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -270,12 +318,79 @@ esac
 echo ""
 echo "4. control — baseline renders everything"
 
-for marker in 'id="site-navigation"' 'id="secondary-navigation"' 'id="mobile-header"' 'ls-fixture-image' 'entry-header'; do
+for marker in 'id="site-navigation"' 'id="secondary-navigation"' 'id="mobile-header"' 'page-header-image' 'entry-header'; do
     case "${BASELINE}" in
         *"${marker}"*) ok "baseline renders ${marker}" ;;
         *) bad "baseline is MISSING ${marker} — the absence assertions above prove nothing if the control does not render it" ;;
     esac
 done
+
+# ---------------------------------------------------------------------------
+# 5. T10 over-suppression — each toggle removes ONLY its own surface.
+#
+# Section 4's control is a page with NO toggles set, which proves the suppression
+# is not unconditional. It does NOT catch the likelier bug: a toggle that fires
+# but removes too much on the page where it legitimately applies — a mis-keyed
+# meta read, or a has_nav_menu filter that forgets to check $location and so
+# reports EVERY location unassigned, taking the primary nav with it.
+#
+# So: on each single-toggle fixture, assert the OTHER two surfaces still render.
+# The secondary-nav page is the sharpest of these — #site-navigation surviving
+# there is exactly what a $location-blind filter would break.
+# ---------------------------------------------------------------------------
+echo ""
+echo "5. T10 — no over-suppression (each toggle hits only its own surface)"
+
+# Secondary-nav toggle ON: primary nav and featured image must be untouched.
+#
+# NOTE ON WHAT THIS DOES *NOT* PROVE. The obvious reading is that it verifies the
+# has_nav_menu filter checks $location. It does not, and a mutation test says so:
+# deleting the $location guard entirely — returning false for EVERY location —
+# still passes this suite 26/26.
+#
+# The reason is upstream. `has_nav_menu` is called for exactly one location in all
+# of GeneratePress + GP Premium: 'secondary' (12 call sites, verified by grep;
+# zero for 'primary' or any other). The primary nav does not consult it at all —
+# it renders unconditionally with a page-list fallback — so a $location-blind
+# filter is currently UNOBSERVABLE in rendered output.
+#
+# The guard is therefore defensive rather than load-bearing: correct, and required
+# the moment GP or any third-party plugin asks about another location, but not
+# something this harness can currently falsify. Keeping the assertion because it
+# pins the upstream coupling — if GP ever does gate the primary nav on
+# has_nav_menu, a blind filter starts failing here and the guard becomes testable.
+case "${SECNAV}" in
+    *'id="site-navigation"'*) ok 'secondary-nav toggle leaves #site-navigation intact' ;;
+    *) bad '#site-navigation is GONE on the secondary-nav page — over-suppression. If the has_nav_menu $location guard was removed, upstream now gates the primary nav on it too; restore the guard.' ;;
+esac
+
+case "${SECNAV}" in
+    *'id="mobile-header"'*) ok 'secondary-nav toggle leaves #mobile-header intact' ;;
+    *) bad '#mobile-header is GONE on the secondary-nav page — over-suppression.' ;;
+esac
+
+# Featured-image toggle ON: both navs must be untouched.
+case "${FEATURED}" in
+    *'id="site-navigation"'*) ok 'featured-image toggle leaves #site-navigation intact' ;;
+    *) bad '#site-navigation is GONE on the featured-image page — over-suppression.' ;;
+esac
+
+case "${FEATURED}" in
+    *'id="secondary-navigation"'*) ok 'featured-image toggle leaves #secondary-navigation intact' ;;
+    *) bad '#secondary-navigation is GONE on the featured-image page — over-suppression.' ;;
+esac
+
+# Primary-nav toggle ON: featured image and secondary nav must be untouched.
+# (#site-navigation is legitimately absent here — GP's own PHP path, asserted in 3.)
+case "${NAV}" in
+    *'page-header-image'*) ok 'primary-nav toggle leaves the featured image intact' ;;
+    *) bad 'featured image is GONE on the primary-nav page — over-suppression.' ;;
+esac
+
+case "${NAV}" in
+    *'id="secondary-navigation"'*) ok 'primary-nav toggle leaves #secondary-navigation intact' ;;
+    *) bad '#secondary-navigation is GONE on the primary-nav page — over-suppression.' ;;
+esac
 
 # ---------------------------------------------------------------------------
 echo ""
