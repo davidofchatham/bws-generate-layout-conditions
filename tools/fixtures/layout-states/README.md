@@ -188,6 +188,30 @@ Consequence for the test harness: config-replay **is** testable under WP-CLI
 once the query is bootstrapped. Real HTTP is only needed for assertions about
 `remove_action` side effects and rendered CSS.
 
+## Seeding into storage nothing reads
+
+The v1→v2 repair was one bug with one shape, and it will recur: **a fixture
+written to the wrong storage backend is invisible to the consumer and silent
+about it.** `generate_menu_plus_settings` was seeded with `set_theme_mod()`; GP
+Premium reads it only via `get_option()` (~20 call sites, zero `get_theme_mod`).
+The write succeeded, the value was readable, and the setting had no effect —
+so the mobile header stayed off and V25 could never be observed.
+
+Nothing catches this by itself. The seed reports success, `verify.php` can
+re-read exactly what it wrote, and the assertion that depends on it passes
+*because the surface it checks renders nothing either way.*
+
+When seeding anything that is not post meta, confirm which API the CONSUMER
+reads before choosing how to write it:
+
+```bash
+grep -rn "get_option( 'the_key'\|get_theme_mod( 'the_key'" path/to/gp-premium/
+```
+
+Same class of trap as the meta-value shapes below: writing a value the admin UI
+could never produce, or to a place the reader never looks, yields a fixture that
+verifies itself and proves nothing about production.
+
 ## Meta value shapes
 
 Not uniform, and the differences are load-bearing:

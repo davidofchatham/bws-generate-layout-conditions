@@ -22,7 +22,8 @@ A GeneratePress Premium `gp_elements` entry that applies layout settings (includ
 **Disabling display:none** (a.k.a. CSS-neutralize):
 Pre-defining `generate_disable_elements()` to return `''`, suppressing the `display:none` GP Premium emits for the **per-post Disable Elements metabox** (`.site-header`/`.site-footer`/etc.). A Layout Element disables by hook-removal, not CSS, so it is not the target. Not a standalone fix — it only stops GP's over-broad blanket hide (which would catch the top bar inside a header Block Element, the legal section inside a footer Block Element, etc.); the conditions then do the precise hiding. Without it the CSS hides any Block Element inside a suppressed wrapper. (Scope detail: architecture.md "Neutralize scope".)
 _Avoid_: "the fix" (fixes nothing alone), "the override".
-_Avoid_: "the override"
+
+**Load order is part of the definition, not an implementation detail.** Both this plugin's and GP Premium's definitions are `function_exists`-guarded, so ownership is a race, and GP requires its module at *file scope* — earlier than any hook. The neutralize must therefore be defined at file scope too, and this plugin must load before `gp-premium`. Defining it on a hook loses silently and completely: it shipped that way through 0.2.0 and never once ran (B5, V12).
 
 **Detector**:
 The plugin's single source of truth for current disable state. Both the body-class consumer and the condition consumer read from it. Hybrid: hook-state for non-poisoned signals, config-replay for header/footer. Lazy + memoized — full resolution runs at most once per request (V5). (Mechanism: ADR-0001, V5.)
@@ -53,6 +54,29 @@ The two surfaces (body classes, conditions) use opposite polarity **on purpose**
 
 **GB constraint (language-adjacent):** the operator selector cannot be preselected for custom condition types — the user always picks the operator after the rule. Device-style `is`/`is_not` on a named-state rule keeps that pick trivial.
 
+## Test surfaces — what each one can and cannot see
+
+Four suites, and they are not interchangeable. Choosing the wrong one produces a **green test that asserts nothing**, which is how B5 shipped through two releases.
+
+| Surface | Runs against | Blind to |
+|---|---|---|
+| PHPUnit (`tests/`) | The Detector against `BWS_GP_Fake_Environment` | Whether the fake's assumptions about GP/GB are true at all |
+| `verify.php` / `seam-fidelity.php` | Real WP/GP under wp-cli | Anything that only differs on a *rendered request* (see below) |
+| `poisoned-signal.php` | Real hook mutation, own process | — (narrow by design; order is load-bearing) |
+| `render-surface.sh` | Real HTTP response bodies | Nothing about internals — it only sees output |
+| `tools/probes/upstream-surface.php` | The upstream API shape itself | Behaviour; it pins signatures, not semantics |
+
+**wp-cli is structurally blind to two whole classes of bug**, and both have bitten:
+
+1. **No main query.** Under `wp eval` nothing is queried: `is_singular()` is false and `get_queried_object_id()` is `0`, so `show_data()` returns false for *both* arms of any comparison and a condition test passes vacuously. `--url` does not fix it — bootstrap with `wp( 'page_id=N' )`.
+2. **Non-singular early returns collapse distinct implementations.** `generate_disable_elements()` returns `''` on any non-singular request, so with no `$post` GP's implementation and this plugin's neutralize are **indistinguishable from the CLI** — both return `''`. Every CLI check reported success for two releases while the neutralize had never run. Only a rendered response can tell two such functions apart.
+
+The rule: if a claim is about *what the page emits*, or about *which of two competing definitions won*, it needs `render-surface.sh`. A wp-cli test of either will be green and meaningless.
+
+**Before trusting any new suite, prove it can fail.** Every suite here has been mutation-checked — break the thing it guards, confirm it fails, and confirm it fails *by name*. Two of them passed against a broken plugin before that check was applied (`render-surface.sh` at 18/18 against stale opcache bytecode; the earlier fixture set against surfaces that rendered no markup at all). Green means nothing until it has been seen red.
+
+**The env caches will lie to you**, and both fail green rather than loudly — LiteSpeed page cache and, worse, opcache (`revalidate_freq=120`, `enable_cli=Off`, so wp-cli reads fresh source while the render does not). See the layout-states README and the wp-litespeed env README.
+
 ## Pointers
 
 - **Invariants, bug ledger, signal map, neutralize scope** → `docs/architecture.md`
@@ -60,3 +84,5 @@ The two surfaces (body classes, conditions) use opposite polarity **on purpose**
 - **Accepted detection gaps** (secondary nav, Customizer layer, archive featured image, Page Hero ambiguity) → architecture.md V20–V22 + signal map
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, ADR-0003
 - **In-flight work + deferred items** → `SPEC.md`, `docs/ROADMAP.md`
+- **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`
+- **Upstream drift guard** (what breaks silently when GB/GP move) → `tools/probes/README.md`
