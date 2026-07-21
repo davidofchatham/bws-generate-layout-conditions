@@ -18,6 +18,12 @@
 # So this is not "an HTTP test for completeness" — it is the only place several
 # documented invariants can be checked at all.
 #
+# WHAT IT STILL CANNOT SEE: layout. Every assertion here is a string match on a
+# response body, so it proves an element is absent from the MARKUP — never that
+# its removal left the page looking right. curl has no viewport, which matters
+# most for V25, whose entire subject is a wrapper that only appears at mobile
+# width. That gap is closed by eye, not here (done 2026-07-21; see V25).
+#
 # Usage:
 #   tools/fixtures/layout-states/render-surface.sh --site testbed
 #
