@@ -171,12 +171,19 @@ case "${BASELINE}" in
 esac
 
 # ---------------------------------------------------------------------------
-# 1. The neutralize is live (V12).
+# 1. The CSS suppression is live (V12).
 #
 # The plugin pre-defines generate_disable_elements() to return '' so GP's CSS
 # path emits nothing. Both definitions are function_exists-guarded, so this is a
 # load-order race — and through 0.2.0 the plugin lost it, silently, on every
-# request. These assertions are the render-level proof that it now wins.
+# request. These assertions are the render-level proof that the CSS is gone.
+#
+# They assert the OUTPUT, not the mechanism, so they hold for either path: the
+# neutralize when it wins the definition race, or the generate_de_scripts
+# removal that takes over when it loses. That is deliberate — mutate the load
+# order so GP wins the race and these should stay green. Ownership itself is
+# reported separately by bws_glc_owns_disable_elements(); a lost race is a
+# degradation to the fallback, not a failure of suppression.
 #
 # Asserted as the ABSENCE of GP's exact rule strings (functions.php:40-68) on
 # pages whose toggle is ON. Matching the literal upstream CSS rather than a

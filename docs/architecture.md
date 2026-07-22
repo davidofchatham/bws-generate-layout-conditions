@@ -62,6 +62,19 @@ How each of the seven disable states is detected. "Hook-state" = reads the live 
 
 What `includes/class-disable-elements.php` (the "fix") actually affects. It pre-defines `generate_disable_elements()` → `''`, winning the `function_exists` race against GP Premium so the per-post metabox CSS path emits nothing. (V12, V24)
 
+**Two mechanisms, disjoint failure modes.** The definition race above is the primary. It is winnable only at file scope and only by whoever loads first, so it depends on plugin order — which nothing enforces. The fallback attacks the other end of the same pipe: `generate_disable_elements()` only returns a string, and exactly one registration prints it (`wp_enqueue_scripts` → `generate_de_scripts`, pri 50, functions.php:74-82). Removing an existing registration has no ordering problem, so `remove_action` from `wp_enqueue_scripts:1` works regardless of load order. Gated on `bws_glc_owns_disable_elements()`, it runs only when the primary lost.
+
+Keeping both is deliberate, because each covers the other's failure:
+
+| Mechanism | Fails when | Covered by |
+|---|---|---|
+| Pre-define `generate_disable_elements()` | GP Premium loads first | the `remove_action` fallback |
+| `remove_action` on `generate_de_scripts` | GP adds work to `generate_de_scripts` beyond the one `wp_add_inline_style` | the pre-define, which leaves the callback intact |
+
+The fallback's blast radius is the whole `generate_de_scripts` callback, which today is that single `wp_add_inline_style` line and nothing else (identical in GP Premium 2.5.5 and 2.5.6) — so today the two are equivalent in effect. The module's other registrations are separate callbacks and are untouched: `generate_disable_elements_setup` (`wp:50`, the PHP suppression), `generate_disable_elements_body_classes` (`body_class:20`), `generate_add_de_meta_box` (`add_meta_boxes:50`).
+
+Render-harness assertions (`render-surface.sh` §1) test rule *absence*, not mechanism, so they hold for either path — mutate the load order and they stay green.
+
 **Three independent GP disable systems. Neutralize touches exactly one.**
 
 | System | Option store | Disable mechanism | Touched by neutralize? |

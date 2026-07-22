@@ -109,18 +109,61 @@ function bws_glc_disable_secondary_nav( $has_nav_menu, $location ) {
 	return $has_nav_menu;
 }
 
+/*
+ * Fallback for a lost definition race: unhook the only consumer of the CSS.
+ *
+ * The neutralize above depends on this plugin appearing before gp-premium in
+ * active_plugins. That is true by name order today, but nothing enforces it: a
+ * folder rename, a must-use loader, or a plugin-order manager can reverse it.
+ *
+ * The definition race is winnable only once, at file scope, and only by whoever
+ * loads first. The *consumption* of that string is not a race at all. GP prints
+ * it from exactly one place — a hook registration, not a file-scope define:
+ *
+ *     add_action( 'wp_enqueue_scripts', 'generate_de_scripts', 50 );
+ *     function generate_de_scripts() {
+ *         wp_add_inline_style( 'generate-style', generate_disable_elements() );
+ *     }
+ *
+ * (gp-premium/disable-elements/functions/functions.php:74-82, identical in 2.5.5
+ * and 2.5.6.) Removing a registration that already exists has no ordering
+ * problem — any hook before wp_enqueue_scripts works. Verified by forcing the
+ * losing load order: GP owned the definition and the CSS was still suppressed.
+ *
+ * Why this is the fallback and not the primary: the two mechanisms fail in
+ * different directions, so keeping both covers both. The neutralize is narrower
+ * — it nulls the string while leaving generate_de_scripts free to do whatever GP
+ * may add to it later. This removal kills the whole callback. Today that callback
+ * is the single wp_add_inline_style call above and nothing else, so the blast
+ * radius is identical; if GP ever adds to it, the primary still holds and this
+ * only runs when the primary has already failed.
+ *
+ * Deliberately scoped to generate_de_scripts alone. The module's other
+ * registrations — generate_disable_elements_setup (wp:50, the PHP suppression),
+ * generate_disable_elements_body_classes (body_class:20), and
+ * generate_add_de_meta_box (add_meta_boxes:50) — are separate callbacks and stay
+ * intact. In particular the PHP suppression path must survive; see the note at
+ * the top of this file.
+ */
+add_action( 'wp_enqueue_scripts', 'bws_glc_remove_disable_elements_css', 1 );
+
+function bws_glc_remove_disable_elements_css() {
+	if ( bws_glc_owns_disable_elements() ) {
+		return;
+	}
+
+	remove_action( 'wp_enqueue_scripts', 'generate_de_scripts', 50 );
+}
+
 /**
- * Verify the neutralize actually took effect, and say so when it did not.
+ * Report a lost definition race, which the fallback above has papered over.
  *
- * Winning the definition race depends on this plugin appearing before gp-premium
- * in active_plugins. That is true by name order today, but nothing enforces it:
- * a folder rename, a must-use loader, or a plugin-order manager can reverse it.
- * When that happens the plugin keeps working in every other respect while
- * silently emitting the CSS it exists to suppress — the exact failure this file
- * already shipped once (invisible because CLI checks cannot see it).
+ * Not an error: the CSS is suppressed either way. But the plugin is running on
+ * its second mechanism rather than its first, which is worth surfacing — the
+ * fallback removes GP's whole enqueue callback instead of just nulling its input,
+ * so a future GP version that adds work to generate_de_scripts would lose it.
  *
- * So: assert ownership rather than assume it. Admin-only, and only for users who
- * could act on it.
+ * Admin-only, and only for users who could act on it.
  */
 add_action( 'admin_notices', 'bws_glc_disable_elements_notice' );
 
@@ -134,10 +177,10 @@ function bws_glc_disable_elements_notice() {
 	}
 
 	printf(
-		'<div class="notice notice-error"><p><strong>%s</strong> %s</p></div>',
+		'<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
 		esc_html__( 'GP Layout Conditions:', 'bws-generate-layout-conditions' ),
 		esc_html__(
-			'the CSS-neutralize is not active — GP Premium defined generate_disable_elements() first, so per-post Disable Elements toggles are still hiding content with CSS. This plugin must load before GP Premium. Check for a plugin-order override.',
+			'GP Premium defined generate_disable_elements() before this plugin could, so the preferred CSS-neutralize is inactive and a fallback is suppressing the CSS instead. Per-post Disable Elements toggles are working, but the fallback is less precise. This plugin is meant to load before GP Premium — check for a plugin-order override.',
 			'bws-generate-layout-conditions'
 		)
 	);
