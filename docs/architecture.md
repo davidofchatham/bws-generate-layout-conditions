@@ -30,7 +30,8 @@ These are the testable rules the codebase must uphold. Numbered monotonically; n
 | V18 | Release flow: git tag (`v{X.Y.Z}`) + GitHub release → PUC detects update. Tag version == plugin header `Version` == readme `Stable tag` (V16). Ship a built zip as the release asset (or let PUC use the auto source zip — must contain plugin at correct path, NOT nested in repo-name dir). |
 | V19 | GB Pro condition registration must run at `plugins_loaded` pri ≥ 11 (GB Pro loads at pri 10). Core includes (disable-elements, detector, body-classes) may stay at pri 5. |
 | V20 | `is_featured_image_disabled()` NEVER reads hook-state on non-singular pages. GP only adds `generate_blog_single_featured_image` to `generate_after_entry_header` on `is_singular()` — hook absence on archives is not a disable signal (B2). Since T8, non-singular uses config-replay (`_generate_disable_featured_image`, V22) instead of blanket false. |
-| V21 | **Known ambiguity — Page Hero element-level disable toggles (featured image + title).** When a Page Hero Block Element has "Disable featured image" or "Disable title" on, it removes the same native hooks the Detector reads — because the Hero *embeds* those elements itself. Detector reports disabled (hook-accurate, semantically wrong: element is active via Hero). v1 behavior: hook-state wins. Future admin toggle: hook-state vs. config-replay. Do NOT silently fix without that toggle. |
+| V21 | **Known ambiguity — relocation reads as disable (content title + featured image).** When an element *embeds* the title/image itself, it removes the same native hooks the Detector reads, so the Detector reports disabled while the element is visibly active in another position. Hook-accurate, semantically wrong. v1 behavior: hook-state wins. **Scope is wider than "Page Hero toggles"** — surveyed against GP 3.6.1 + Premium 2.5.6, `generate_show_title` has six upstream writers and two of them have no toggle at all (relocation is inferred from a `{{post_title}}` template tag in element content). Full table below. Featured image is **not** symmetric: it has no template-tag writer (Page Header renders its own image via `has_post_thumbnail()` without touching the hooks), so only the toggle-driven rows apply to it. Do NOT silently fix — see the two-meanings analysis below; a single boolean cannot serve both consumers, and the fix shape is unresolved. |
+| V29 | **Content-title detection depends on GP Premium being loaded.** The theme's own `_generate-disable-headline` handling (`generate_disable_title`, generatepress `inc/general.php:225`) is a **named callback, registered unconditionally**, deciding at call time — so `has_filter('generate_show_title','__return_false')` cannot see it. The metabox toggle is detected only because Premium's Disable Elements module *redundantly* adds `__return_false` for the same meta key (`disable-elements/functions/functions.php:286`). Premium is a hard requirement (`Requires Plugins`, V-req), so this is not a live bug — but it is load-bearing coupling, not incidental: if that Premium module were ever disabled per-site while the theme stayed, `_generate-disable-headline` would go undetected with no other signal. Any move to config-replay for content title should read `_generate-disable-headline` directly rather than inheriting this dependency. |
 | V22 | **Closed (T8, 2026-07-08) — Layout Element "Disable featured image" on non-singular pages detected via config-replay.** Layout Element fires `remove_action` for featured image without `is_singular()` guard (gp-premium `elements/class-layout.php:315`) — disables on archives too. Detector non-singular branch replays `_generate_disable_featured_image` through `layout_element_disables()` (same engine as header/footer). Singular keeps hook-state (V21 Page-Hero ambiguity unchanged). Post-metabox layer stays correctly absent off-singular (ADR-0002). |
 | V23 | `GeneratePress_Conditions::show_data()` requires array-of-arrays for all three args. `get_post_meta(...,true)` returns `''` when meta unset — always normalize with `?: array()` before passing. Raw empty string → `in_array($val,'')` → fatal `TypeError`. |
 | V24 | **Neutralize scope is exact.** It nulls ONLY `generate_disable_elements()` — GP Premium's per-post Disable-Elements metabox CSS path (`_generate-disable-*` post-meta). Customizer global element disables (`hide_title`, `hide_tagline`, `nav_position_setting=disable`, `footer_bar`, `footer_widgets`) are all PHP render-gates with ZERO frontend `display:none` — neutralize cannot affect them. Of the per-post metabox toggles, header/top-bar/footer/content-title(GP≥3.0) are PHP-removed so their CSS is redundant (no risk). Regression surface when neutralize runs without a replacement condition: **Featured Image** (`_generate-disable-post-image`, CSS-only, no PHP removal — full), **Secondary Nav** (`_generate-disable-secondary-nav`, CSS-only — full), and **Primary Nav's mobile-header wrapper** (partial — see V25). See "Neutralize scope" section. **Confirmed empirically 2026-07-21** (T11, `render-surface.sh`): with the neutralize live, featured-image markup and `#secondary-navigation` both survive their toggles (CSS-only, full surface) while `entry-header` is absent (PHP-removed, neutralize a no-op). Previously derived from reading GP's source only. **Surface CLOSED by T10 (2026-07-21):** the plugin now PHP-removes both full-surface toggles, and the same two assertions were inverted to prove it — featured-image and `#secondary-navigation` markup must now be ABSENT under their toggles. V24 still describes which toggles are CSS-only *upstream*, which is what makes the suppression necessary; it no longer describes live exposure. Note the featured-image assertion matches the `page-header-image` wrapper, not the attachment filename — the filename also appears in `og:image`/`twitter:image`/Yoast JSON-LD irrespective of render, and as an absence check it reports false failures. |
@@ -53,7 +54,7 @@ How each of the seven disable states is detected. "Hook-state" = reads the live 
 | Secondary nav | Post-meta only | `_generate-disable-secondary-nav` | Layout Element not detected | No clean hook; array-callback on `has_nav_menu` not checkable |
 | Top bar | Hook-state | `has_action('generate_before_header','generate_top_bar')` | None known | |
 | Featured image | Hybrid: hook-state (singular) + config-replay (non-singular) | singular: `has_action('generate_after_entry_header','generate_blog_single_featured_image')`; non-singular: layout `_generate_disable_featured_image` | Page Hero ambiguity (V21); post-metabox layer absent off-singular by design (ADR-0002) | GP only adds hook on `is_singular()` (V20/B2); archive detection via replay since T8 (V22) |
-| Content title | Hook-state | `has_filter('generate_show_title','__return_false')` | Page Hero ambiguity (V21) | Page Hero "Disable title" sets this filter while title is still active via Hero |
+| Content title | Hook-state | `has_filter('generate_show_title','__return_false')` | Page Hero + template-tag relocation ambiguity (V21); theme-core writer invisible (V29) | Six upstream writers, only five detectable — see V21 table. No Customizer layer exists for this signal (unlike header/footer/nav): title is per-post-and-element only, upstream |
 | Sidebar layout | GP resolver | `generate_get_layout()` | None | GP folds all layers; no replay needed. Rules use membership not exclusive match (V26) |
 
 ---
@@ -139,7 +140,7 @@ One caveat worth carrying: the `$location` guard in the `has_nav_menu` filter is
 
 ## Element toggle map
 
-GP element toggles that affect the signals the Detector reads. Only two element types have relevant toggles: **Layout Element** and **Page Hero Block Element**.
+GP element toggles that affect the signals the Detector reads. Only two element types have relevant *toggles*: **Layout Element** and **Page Hero Block Element**. Toggles are not the only path to a signal — the legacy Page Hero (Header Element) and the Premium Page Header module both suppress the content title via template-tag inference with no toggle at all (V21 survey below).
 
 | Element type | Toggle | Signal affected | Condition rule | Body class | GP native class | Notes |
 |---|---|---|---|---|---|---|
@@ -153,6 +154,87 @@ GP element toggles that affect the signals the Detector reads. Only two element 
 | Page Hero Block Element | Disable title | Content title hook-state | Content Title Active | `gp-no-content-title` | — | V21 ambiguity: same pattern as featured image. Title active via Hero; hook-state reports disabled. |
 
 Layout Elements without any of the above toggles set, and all other Block Element types (post-meta-template, post-navigation-template, archive-navigation-template, content-template, sidebar), do not affect any tracked signal.
+
+The table above covers **toggles only**. Two further upstream writers reach the content-title signal with no toggle involved — see the full survey below.
+
+---
+
+## Content title: complete writer survey (V21, V29)
+
+Surveyed against **GP 3.6.1 + GP Premium 2.5.6**, 2026-07-29. Every writer to the `generate_show_title` filter:
+
+| # | Source | Mechanism | Trigger | Detected | Meaning |
+|---|---|---|---|---|---|
+| 1 | Theme core — `inc/general.php:225` | `add_filter(…, 'generate_disable_title')` | always registered; returns false when `_generate-disable-headline` set, `is_singular()` | ✗ **no** — named callback (V29) | genuine disable |
+| 2 | Premium Disable Elements — `disable-elements/functions/functions.php:286` | `__return_false` | `_generate-disable-headline` post meta | ✓ | genuine disable |
+| 3 | Layout Element — `elements/class-layout.php:325` | `__return_false` | `_generate_disable_title` on element | ✓ | genuine disable |
+| 4 | Page Hero **Block** Element — `elements/class-block.php:298` | `__return_false`, `is_singular()`-guarded | `_generate_disable_title` on element | ✓ | **relocation** |
+| 5 | Page Hero **legacy** (Header Element) — `elements/class-hero.php:889` | `__return_false`, `is_singular()`-guarded | **`{{post_title}}` in hero content** — no toggle | ✓ | **relocation** |
+| 6 | Premium **Page Header** module — `page-header/functions/functions.php:32` | `__return_false` | **`{{post_title}}` in page-header content** — no toggle | ✓ | **relocation** |
+
+Also present: a `__return_true` re-enabler at priority 20 (`inc/plugin-compat.php:845`) which would override every row above. **Inert on current installs** — gated on `GP_PREMIUM_VERSION < 1.12.0-alpha.1`. Recorded so a future reader does not rediscover it as a live override.
+
+**No Customizer layer exists for content title.** Unlike header / footer / nav / top bar, GP offers no global show-hide control — the signal is per-post meta and elements only. Confirmed by exhaustive grep, not inferred from the Customizer UI.
+
+Rows 5 and 6 are the load-bearing discovery: relocation is inferred upstream from a **substring in element content**, not a meta flag. Any source-aware detection keyed on element meta (the obvious fix shape) would miss both. Row 6 is not a Page Hero at all — it is the separate Page Header module, so "Page Hero ambiguity" was always the wrong name for this class of problem.
+
+### Rows 5 / 6: mechanism and detection cost
+
+Both decide suppression by `strpos()` on **raw stored content, pre-substitution**, at `wp`, while substitution happens later at render (`template_tags()`, `class-hero.php:924`). So suppression tracks *the literal string being present in meta*, not whether a title ultimately renders.
+
+| | Row 5 — legacy Page Hero | Row 6 — Page Header module |
+|---|---|---|
+| Setup | `wp` pri **100** → `after_setup()` → `class-hero.php:687` | `wp` pri **10** → `functions.php:10` |
+| Test | `strpos($options['content'], '{{post_title}}') !== false` | same, `functions.php:31` |
+| Content source | `_generate_element_content` on the element post | `_meta-generate-page-header-content` on the resolved post |
+| Post resolution | element display conditions (same posts `layout_element_disables()` already queries — an added meta read on an existing query) | `generate_page_header_get_options()` — CPT via `_generate-select-page-header`, term meta, or the `generate_page_header_global_locations` option, with blog / archive / search / 404 branches |
+| Filter guard | `is_singular()` | none |
+
+**`generate_page_header_get_options()` is safe to call for detection** (verified 2026-07-29, Premium 2.5.6). Pure read — `get_option` / `get_post_meta` / `get_term_meta` / `get_post_status` / `has_post_thumbnail` / conditional tags only. No writes, no hook registration, no output, no static memoization to poison; already called on every render (`functions.php:22`), so re-entrancy is a non-issue. Needs the main query (reads `get_the_ID()`), which the Detector already has. Called with no `$id` it resolves against the current queried object — the same resolution the render path uses, so detection cannot disagree with render.
+
+**Do not reimplement that resolution.** Line 205 applies `apply_filters( 'generate_page_header_id', $id )`, so any third party can redirect which Page Header post applies; a reimplementation silently misses it. Calling the function honors it for free. This reverses an earlier estimate that row 6 was too costly to detect — with the resolver reused, row 6 is about as cheap as row 5:
+
+```php
+if ( function_exists( 'generate_page_header_get_options' ) ) {
+    $opts = generate_page_header_get_options();
+    $relocated = $opts && isset( $opts['content'] )
+        && false !== strpos( $opts['content'], '{{post_title}}' );
+}
+```
+
+The `function_exists` guard is **mandatory, not defensive**: the Page Header module is optional *and deprecated* — loaded only when `generatepress_is_module_active('generate_package_page_header', 'GENERATE_PAGE_HEADER')` (`gp-premium.php:103`, under a "Deprecated modules" heading; the loader is marked `@deprecated 1.7.0`). On a site that never activated it the function does not exist. Corollary: row 6 can only fire where the module is active, which bounds the surface. The `isset()` is V23 discipline — `get_post_meta(…, true)` yields `''` when unset, the exact shape that already caused one fatal here.
+
+Unlike ~15 neighbours in the same file, `generate_page_header_get_options()` is **not** `function_exists`-wrapped at its own definition — no override seam exists for it.
+
+**T14 canary:** this binds the plugin to a deprecated module's function signature. If row-6 detection is built, `tools/probes/upstream-surface.php` should pin `generate_page_header_get_options()` existence + no-arg callability + the `content` key, so removal of a deprecated module surfaces as a named failure rather than silently disabling detection.
+
+### Sister-plugin interaction (bws-gb-dynamic-tags-extensions)
+
+DTE ships its own title tag (`bws_post_title_core`, `includes/tags/content-tags.php:109`) and **never touches `generate_show_title`** (verified by grep, 2026-07-29). Its tag syntax is not the literal `{{post_title}}`, so it does **not** trigger rows 5 or 6. Consequence: a GB block using the DTE tag inside a Page Hero renders a title while GP leaves the native title **on** — a duplicate. This is the inverse of the row-4 toggle problem: GP's own template tag self-suppresses, DTE's cannot.
+
+Two levers, if that gap is ever closed from the DTE side:
+
+- `add_filter( 'generate_show_title', '__return_false', 20 )` — no filter exists on the suppression *decision* in either row (the `strpos` result feeds `add_filter` directly, unhookable), but all writers sit at default priority 10, so priority 20 wins. This is GP's own override slot (`inc/plugin-compat.php:845`). Register no earlier than `wp`:101 to land after both row 5 (`wp`:100) and row 6 (`wp`:10).
+- `generate_page_hero_post_title` (`class-hero.php:947`) filters the *substituted value* — allows putting `{{post_title}}` in the hero for free suppression, then rewriting its output. Correct suppression at the cost of routing through GP's tag.
+
+### Two meanings of "Content Title Active"
+
+The relocation rows make the rule name ambiguous between two questions that are both legitimate and give **opposite answers on the same page**:
+
+- **Meaning A — "renders anywhere."** Consumer: a block *inside* the Hero, conditioned to show only when a title should exist. Relocation is not a disable.
+- **Meaning B — "renders in the native theme slot."** Consumer: a block *outside* the Hero avoiding a duplicate title; spacing compensation. Relocation **is** a disable. This is v1's shipped meaning.
+
+One boolean cannot serve both. The failure modes are asymmetric: shipping A-only breaks Meaning-B consumers **visibly** (duplicate titles), while shipping B-only breaks Meaning-A consumers **invisibly** (blocks that never render, with nothing on screen to notice). Silent failure argues against B-only — but B is already the released meaning, so flipping it is a behavior change on existing sites, not a new capability.
+
+Candidate shapes, unresolved:
+
+1. **Two rules** — keep `content_title_active` = B (no migration, V27 slug untouched), add a second rule for A. Cost: naming two dropdown entries that are self-explanatory without the docs, and the same split likely doubles onto featured image. Four rules where two stood.
+2. **Global admin toggle** (the original ROADMAP framing) — **rejected.** A site can carry a Layout Element disable *and* a Hero relocation simultaneously on the same page load, needing A and B at once. A global switch cannot express that.
+3. **Flip to A, document the break** — cheapest, defensible only if nothing live consumes B semantics yet.
+
+Deciding between 1 and 3 requires knowing whether any live site consumes `content_title_active` under Meaning B. Not determinable from source.
+
+The `gp-no-content-title` / `gp-no-featured-image` body classes encode a meaning too, and have **one name each with no room to split** — whatever resolves at the rule layer must answer for the class layer separately.
 
 ---
 

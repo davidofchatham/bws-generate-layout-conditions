@@ -177,9 +177,17 @@ class BWS_GP_Layout_Detector {
 	}
 
 	private static function is_content_title_disabled() {
-		// V21 ambiguity: Page Hero "Disable title" adds this same filter because the Hero
-		// embeds the title itself — filter present but title is active via the Hero.
-		// Hook-state wins in v1. Same future toggle as featured image will apply here.
+		// V21 ambiguity: any element that EMBEDS the title adds this same filter, so
+		// relocation is indistinguishable from a disable. Six upstream writers; two of
+		// them (legacy Page Hero, Premium Page Header module) have no toggle at all —
+		// they infer relocation from a {{post_title}} template tag in element content,
+		// so a meta-keyed fix would miss them. Full survey + the two-meanings analysis
+		// in docs/architecture.md. Hook-state wins in v1; do not change without
+		// resolving which meaning the rule carries.
+		//
+		// V29: this check cannot see the theme's OWN _generate-disable-headline handling
+		// (named callback generate_disable_title, always registered, decides at call
+		// time). That toggle is detected only via GP Premium's redundant __return_false.
 		return self::env()->has_hook( 'generate_show_title', '__return_false' );
 	}
 
@@ -200,12 +208,14 @@ class BWS_GP_Layout_Detector {
 
 		// Config-based, NOT render-based (V7). Never consult has_post_thumbnail().
 		//
-		// V21 ambiguity: Page Hero "Disable featured image" (and "Disable title" for
-		// is_content_title_disabled) removes this hook because the Hero embeds the element
-		// itself — hook absent but element is active in a different position. Hook-state
-		// wins in v1 on singular. A future toggle should let users choose hook-state vs
-		// config-replay. Do not change without that toggle — both interpretations are
-		// valid per-site.
+		// V21 ambiguity: Page Hero "Disable featured image" removes this hook because the
+		// Hero embeds the image itself — hook absent but element active in a different
+		// position. Hook-state wins in v1 on singular.
+		//
+		// NOT symmetric with content title: featured image has no template-tag writer
+		// (the Page Header module renders its own image via has_post_thumbnail() without
+		// touching these hooks), so only toggle-driven relocation applies here. It may
+		// therefore not need the rule split that content title does — see V21 survey.
 		return ! self::env()->has_hook( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}
 

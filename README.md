@@ -54,9 +54,13 @@ Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds n
 
 A few configurations cannot be detected reliably or at all:
 
-- **Page Hero toggling of "Disable title" and "Disable featured image"** — if you use those options to prevent the title or featured image from being displayed separately outside the Page Hero element, it will be detected the same as if they were disabled via a Layout Element. Two catches that may not be obvious:
-  - If you use the toggles *and* apply the appropriate display conditions to blocks within the Page Hero element hoping to allow for post-level disabling of the featured image or title, those blocks will be hidden regardless of post settings (they still count as disabled based on the toggle settings).
-  - If you use the toggles, `gp-no-content-title` and/or `gp-no-featured-image` will be injected into the `body` classes regardless of whether they are shown within the Page Hero element.
+- **Moving the title or featured image into another element reads as disabling it.** When an element renders the title or featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affected:
+  - **Page Hero "Disable title" / "Disable featured image" toggles.**
+  - **Legacy Page Hero (Header Element)** and the **Page Header module** — these need no toggle. Putting `{{post_title}}` in their content suppresses the native title on its own. (Title only; the featured image is unaffected by this path.)
+
+  Two catches that may not be obvious:
+  - If you apply display conditions to blocks *within* the element hoping to allow post-level control of the featured image or title, those blocks will be hidden regardless of post settings — they count as disabled.
+  - `gp-no-content-title` and/or `gp-no-featured-image` are injected into the `body` classes regardless of whether the title or image is shown within the element.
 - **Featured image disabled on archives via a Layout Element** — detection is limited to singular pages.
 - **Secondary nav disabled via a Layout Element** — only the per-post Secondary Nav toggle is detected.
 

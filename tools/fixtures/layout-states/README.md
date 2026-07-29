@@ -35,7 +35,7 @@ them. These fixtures make them falsifiable:
 | `ls-el-layout-header-footer` | V2 — the config-replay layer itself. |
 | `ls-el-layout-featured-archive` | V22/T8 — featured-image disable on a **non-singular** archive, where hook-state is meaningless (V20/B2). Targets `/department/sales/`. |
 | `ls-el-layout-excluded` | V4 — replay must pass all **three** condition metas to `show_data()`. Verified discriminating: display-only `true`, all-three `false`. A two-arg replay would report this page disabled. |
-| `ls-el-page-hero` | V21 — characterizes the Page Hero ambiguity (Hero embeds title/image, removing the hooks the Detector reads). Records current behaviour; does not assert it is correct. |
+| `ls-el-page-hero` | V21 — characterizes the Page Hero **Block Element** ambiguity (Hero embeds title/image, removing the hooks the Detector reads). Records current behaviour; does not assert it is correct. Covers **one of six** content-title writers: the 2026-07-29 survey (`architecture.md`) found two toggle-less relocation paths — legacy Page Hero and the Premium Page Header module, both keyed on a `{{post_title}}` template tag — that **no fixture exercises**. Add those before building any V21 fix, or it will be validated against a third of the surface. |
 | `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
 
