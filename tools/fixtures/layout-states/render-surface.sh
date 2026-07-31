@@ -51,7 +51,7 @@ export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL='*'
 
 SITE=''
-ENV_ROOT="${WP_LITESPEED_ROOT:-/d/Environments/wp-litespeed}"
+ENV_ROOT="${WP_LITESPEED_ROOT:-${HOME}/wp-litespeed}"
 PASS=0
 FAIL=0
 
