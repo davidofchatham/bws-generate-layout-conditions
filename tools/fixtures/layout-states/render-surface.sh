@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# layout-states — render-level test harness (T11 + T10 / V14, V24, V25).
+# layout-states — render-level test harness (T11 + T10 + T15/T16 /
+# V14, V24, V25, V31).
 #
 # Asserts on RENDERED HTML. Everything else in this blueprint runs under wp-cli,
 # and for these invariants wp-cli is structurally blind:
@@ -28,11 +29,12 @@
 #   tools/fixtures/layout-states/render-surface.sh --site testbed
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-states seeded at blueprint v3+ — v1 and
-# v2 fixtures cannot support these assertions (v1: no featured image, no nav
-# menus, Menu Plus mobile header never enabled; v2: no thumbnail on the two
-# nav-toggle pages, which makes T10's over-suppression checks vacuous). The
-# script verifies all of that rather than trusting it.
+# pass --env-root. Preconditions: layout-states seeded at blueprint v4+ — earlier
+# fixtures cannot support these assertions (v1: no featured image, no nav menus,
+# Menu Plus mobile header never enabled; v2: no thumbnail on the two nav-toggle
+# pages, which makes T10's over-suppression checks vacuous; v3: no archive
+# content-title element, which makes section 6 vacuous). The script verifies all
+# of that rather than trusting it.
 #
 # TWO ERAS OF ASSERTION, and the difference matters when reading a failure:
 #   * T11 assertions CHARACTERIZE the pre-T10 surface — which toggles GP leaves
@@ -42,6 +44,9 @@
 #     that was the V14 regression. T10 removes it in PHP, so the same fixtures now
 #     prove it is GONE. A failure there means the suppression did not run; section
 #     5 is what distinguishes "did not run" from "ran too broadly".
+#   * Section 6 (T15/T16) is a third era and the only one asserting on an ARCHIVE.
+#     Its gp-no-content-title check is likewise an inversion: hook-state emitted
+#     that class there, Meaning A does not.
 #
 set -euo pipefail
 
@@ -403,6 +408,86 @@ esac
 case "${NAV}" in
     *'id="secondary-navigation"'*) ok 'primary-nav toggle leaves #secondary-navigation intact' ;;
     *) bad '#secondary-navigation is GONE on the primary-nav page — over-suppression.' ;;
+esac
+
+# ---------------------------------------------------------------------------
+# 6. V31 / ADR-0005 — content title reports the PAGE-TITLE role.
+#
+# The one claim the PHPUnit fake structurally cannot test. The fake can encode
+# the belief that GP leaves the archive HEADING standing when a Layout Element
+# disables the content title; only a rendered archive can falsify it. If that
+# belief is wrong, the whole off-singular short-circuit is wrong with it.
+#
+# The mechanism under test (class-layout.php:324) is one unguarded
+# add_filter( 'generate_show_title', '__return_false' ). On an archive that
+# filter gates the ITEM titles inside loop cards (content.php:35), while the
+# <h1 class="page-title"> heading comes from a different hook entirely
+# (generate_archive_title, archive.php:34). So one element produces both halves:
+# item titles gone, heading intact.
+#
+# The gp-no-content-title assertion is INVERTED relative to pre-ADR-0005
+# behaviour, exactly like the T10 rows above: hook-state saw that __return_false
+# and emitted the class on this archive. It must now be absent.
+#
+# Marker discipline, same lesson as the featured-image filename (section 2):
+#   * 'class="page-title"' is emitted only by generate_archive_title().
+#   * 'class="entry-title"' is emitted only by the title render itself
+#     (theme-functions.php:600/609) — the surrounding entry-header renders
+#     regardless, so matching the header would report a title that is not there.
+# ---------------------------------------------------------------------------
+echo ""
+echo "6. V31 — content title = the page-title role, not the loop cards"
+
+ARCHIVE=$(fetch 'department/sales' || true)
+
+[ -n "${ARCHIVE}" ] || err "empty response for /department/sales/ — every assertion in this section is presence/absence against the body and would pass vacuously."
+
+case "${ARCHIVE}" in
+    *'</html>'*) ok "archive response is a complete HTML document ($(printf '%s' "${ARCHIVE}" | wc -c) bytes)" ;;
+    *) err 'archive response is not complete HTML — refusing to assert against a truncated body' ;;
+esac
+
+# An EMPTY archive 404s, and a 404 satisfies both absence checks below for the
+# wrong reason. Prove the loop rendered at least one post first.
+case "${ARCHIVE}" in
+    *'id="post-'*) ok 'archive renders the default loop (>=1 post) — core-structures department:sales is populated' ;;
+    *) err '/department/sales/ renders no posts — reseed core-structures. The absence assertions below would pass against a 404.' ;;
+esac
+
+# Blueprint v4 precondition, and it hard-aborts for the same reason as the ones in
+# section 0. If ls-el-layout-title-archive is missing (or its display condition
+# misses this archive) then NOTHING is disabled on this page — and the
+# gp-no-content-title absence check below passes trivially, for a reason that has
+# nothing to do with the behaviour under test. Suppressed loop-card titles are the
+# proof that the element is live.
+case "${ARCHIVE}" in
+    *'class="entry-title"'*) err 'loop-card titles still render on the archive — ls-el-layout-title-archive is not applying, so the gp-no-content-title check below would pass vacuously. Reseed layout-states at blueprint v4+ and check its taxonomy:department/sales display condition.' ;;
+    *) ok 'loop-card item titles ARE suppressed (element live, blueprint v4+) — the two roles are genuinely split' ;;
+esac
+
+case "${ARCHIVE}" in
+    *'class="page-title"'*) ok 'archive HEADING survives the Layout Element content-title disable (the V31 premise)' ;;
+    *) bad 'no <h1 class="page-title"> on the archive — GP no longer leaves the heading standing under a Layout Element content-title disable. The off-singular short-circuit rests on this; V31 needs revisiting, not the code.' ;;
+esac
+
+case "${ARCHIVE}" in
+    *'gp-no-content-title'*) bad 'gp-no-content-title still emitted on the archive — the Detector is reading item-title suppression as a page-title disable. This is the pre-ADR-0005 behaviour; the off-singular short-circuit did not run.' ;;
+    *) ok 'ADR-0005: no gp-no-content-title on the archive (item-title suppression is not a page-title disable)' ;;
+esac
+
+# Control for the two absence checks above. Without it, a Detector that never
+# emitted the class — or a body-class filter that stopped running — would pass
+# them both. This page carries _generate-disable-headline, the metabox key the
+# Detector now reads DIRECTLY rather than inheriting from GP Premium's redundant
+# __return_false, so it is also the render-level proof that V29 is closed.
+case "${PHPREM}" in
+    *'gp-no-content-title'*) ok 'control: gp-no-content-title IS emitted for the per-post metabox disable (V29 closed — key read directly)' ;;
+    *) bad 'gp-no-content-title MISSING on the metabox-disabled page — a genuine disable is no longer detected. The archive absence assertions above prove nothing without this.' ;;
+esac
+
+case "${BASELINE}" in
+    *'gp-no-content-title'*) bad 'gp-no-content-title emitted on the baseline, where nothing is disabled' ;;
+    *) ok 'control: no gp-no-content-title on the baseline' ;;
 esac
 
 # ---------------------------------------------------------------------------

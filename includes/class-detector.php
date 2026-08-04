@@ -6,8 +6,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Single source of truth for GP disable states + sidebar layout.
  *
- * Hybrid detection: hook-state for most signals; config-replay for header/footer
- * (whose hook signals are poisoned by Block Element takeover — ADR-0001).
+ * Hybrid detection: hook-state for most signals; config-replay for header, footer
+ * and content title (whose hook signals are poisoned by elements that take over
+ * the hook for their own reasons — ADR-0001, ADR-0005).
  *
  * Lazy + memoized: full resolution runs ≤1× per request (V5). First call is always
  * after `wp` (body-class consumer at wp:110; condition consumer at render_block).
@@ -104,6 +105,7 @@ class BWS_GP_Layout_Detector {
 				'class'  => 'gp-no-featured-image',
 			),
 			'content_title'  => array(
+				// The PAGE-TITLE role, not the item titles in loop cards (V30/V31).
 				'method' => 'is_content_title_disabled',
 				'rule'   => 'content_title_active',
 				'label'  => __( 'Content Title Active', 'bws-generate-layout-conditions' ),
@@ -169,26 +171,47 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
+	// Content title — config-replay of the PAGE-TITLE role (V30, V31, ADR-0005)
+	//
+	// Same poisoning as header/footer, same fix: `generate_show_title` carries a
+	// __return_false from any element that RELOCATES the title (Page Hero Block,
+	// legacy Page Hero, the deprecated Page Header module), so hook-state cannot
+	// tell "moved" from "removed". Those writers are not detected, not
+	// compensated for, and not read — the signal is derived from the only two
+	// genuine-disable sources instead (ADR-0005 Meaning A).
+	// -----------------------------------------------------------------------
+
+	private static function is_content_title_disabled() {
+		// Off singular NO writer targets the page-title role (V31): the archive
+		// heading is a different hook (generate_archive_title), the Layout Element
+		// toggle reaches only the item titles inside loop cards, and the metabox
+		// layer cannot apply to an archive (ADR-0002). Uniformly correct for
+		// archives, search, 404 and the blog posts page — not an archive special
+		// case. Explicit because layout_element_disables() has no singular gate of
+		// its own (post_metabox_disables() does).
+		if ( ! self::env()->is_singular() ) {
+			return false;
+		}
+
+		// Writers 1+2 collapse to one key: the theme's own named callback and GP
+		// Premium's redundant __return_false read the same metabox meta. Reading it
+		// directly is what closes V29.
+		if ( self::post_metabox_disables( '_generate-disable-headline' ) ) {
+			return true;
+		}
+
+		// Layout Element key — NOT the Page Hero Block key (_generate_disable_title).
+		// The two element types differ by more than a prefix, and probing the wrong
+		// one reports the opposite of the truth (survey trap, docs/architecture.md).
+		return self::layout_element_disables( '_generate_disable_content_title' );
+	}
+
+	// -----------------------------------------------------------------------
 	// Hook-state signals — metabox + Layout Element both set the same hook
 	// -----------------------------------------------------------------------
 
 	private static function is_primary_nav_disabled() {
 		return self::env()->has_hook( 'generate_navigation_location', '__return_false' );
-	}
-
-	private static function is_content_title_disabled() {
-		// V21 ambiguity: any element that EMBEDS the title adds this same filter, so
-		// relocation is indistinguishable from a disable. Six upstream writers; two of
-		// them (legacy Page Hero, Premium Page Header module) have no toggle at all —
-		// they infer relocation from a {{post_title}} template tag in element content,
-		// so a meta-keyed fix would miss them. Full survey + the two-meanings analysis
-		// in docs/architecture.md. Hook-state wins in v1; do not change without
-		// resolving which meaning the rule carries.
-		//
-		// V29: this check cannot see the theme's OWN _generate-disable-headline handling
-		// (named callback generate_disable_title, always registered, decides at call
-		// time). That toggle is detected only via GP Premium's redundant __return_false.
-		return self::env()->has_hook( 'generate_show_title', '__return_false' );
 	}
 
 	private static function is_top_bar_disabled() {
@@ -214,8 +237,9 @@ class BWS_GP_Layout_Detector {
 		//
 		// NOT symmetric with content title: featured image has no template-tag writer
 		// (the Page Header module renders its own image via has_post_thumbnail() without
-		// touching these hooks), so only toggle-driven relocation applies here. It may
-		// therefore not need the rule split that content title does — see V21 survey.
+		// touching these hooks), so only toggle-driven relocation applies here. Content
+		// title left this hook for config-replay (ADR-0005); featured image has not, and
+		// V21 stays open for it — see the V21 survey before changing that.
 		return ! self::env()->has_hook( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
 	}
 

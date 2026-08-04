@@ -26,13 +26,20 @@ _Avoid_: "the fix" (fixes nothing alone), "the override".
 **Load order is part of the definition, not an implementation detail.** Both this plugin's and GP Premium's definitions are `function_exists`-guarded, so ownership is a race, and GP requires its module at *file scope* — earlier than any hook. The neutralize must therefore be defined at file scope too, and this plugin must load before `gp-premium`. Defining it on a hook loses silently and completely: it shipped that way through 0.2.0 and never once ran (B5, V12).
 
 **Detector**:
-The plugin's single source of truth for current disable state. Both the body-class consumer and the condition consumer read from it. Hybrid: hook-state for non-poisoned signals, config-replay for header/footer. Lazy + memoized — full resolution runs at most once per request (V5). (Mechanism: ADR-0001, V5.)
+The plugin's single source of truth for current disable state. Both the body-class consumer and the condition consumer read from it. Hybrid: hook-state for non-poisoned signals, config-replay for header, footer and content title. Lazy + memoized — full resolution runs at most once per request (V5). (Mechanism: ADR-0001, ADR-0005, V5.)
 
 **Disable layer**:
 One of three independent sources that can suppress a section. (1) **Customizer** — global defaults (granular only for sidebar config by page/archive/post; not relevant to the 7 disable states). (2) **Layout Element** — by location condition; the common case here. (3) **Post metabox** — per individual post; least common but must work. A layer can only *disable*, never re-enable — so combined disable state is a pure OR across layers (V1).
 
 **Poisoned signal**:
-A hook-state check that can't distinguish "GP disabled this section" from "a Block Element took over this hook." Applies to header/footer only: a header/footer Block Element unconditionally `remove_action`s the native construct to claim the hook, so `! has_action(...)` reads "disabled" on every page that has the Block Element. These two signals use config-replay instead (V2, ADR-0001).
+A hook-state check that can't distinguish "GP disabled this section" from "an element took over this hook for its own reasons." Header/footer: a header/footer Block Element unconditionally `remove_action`s the native construct to claim the hook, so `! has_action(...)` reads "disabled" on every page that has the Block Element (V2, ADR-0001). Content title: three of the six writers to `generate_show_title` are elements that **relocate** the title into themselves and suppress the native one to avoid a duplicate, so the filter's presence reads "disabled" on a page that visibly has a title (ADR-0005). All three signals use config-replay instead. The fix is always to stop reading the hook, never to compensate for the writers.
+
+**Content title (= the page title)**:
+The one title at the top of a page — the entry title on singular, the `<h1 class="page-title">` heading on an archive. What "Content Title Active" reports, on every page type. **Item titles** inside archive loop cards are a *different page-structure element* and are explicitly out of remit: they are item-level, one per card, and per V6 this plugin reports page-level state only (`evaluate()` discards `post_id`), so it could answer at most "are loop titles globally suppressed", never a per-item question. GP reuses one filter (`generate_show_title`) across both roles, which is why the two are easy to conflate and why the axis is page-structure **role**, not hook (V30, V31).
+_Avoid_: "the title" unqualified — say **page title** or **item title**. Also avoid reading GP Premium's help text ("the content title of the current post/taxonomy") as a definition; that toggle does not reach the archive heading.
+
+**Relocation ≠ disable (Meaning A)**:
+An element that renders the title itself has *moved* the title, not removed it. "Content Title Active" asks only "has the author's configuration disabled the page title?" — the per-post metabox and the Layout Element setting, the two places an author can genuinely say "no title here." A Page Hero that takes over the title reports **active**, so blocks inside it still render. The discarded alternative ("does the native theme slot render the title?") is Meaning B; it is precise but fails **silently**, which is why it lost. (ADR-0005; the accepted gap it leaves is in architecture.md.)
 
 **Condition** (`gp_theme_element`, `gp_theme_sidebar`):
 The custom GenerateBlocks Pro condition types. "Theme Element Status" (`gp_theme_element`) gates a block on element disable state; "Theme Sidebar" (`gp_theme_sidebar`) on the resolved sidebar layout. Split into separate registry slugs because the slug is persisted in saved condition data (V27). Reserved future slug: `gp_theme_container`. Requires GB Pro. (Rules + counts: architecture.md V10/V11/V26.)
@@ -80,8 +87,8 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 ## Pointers
 
 - **Invariants, bug ledger, signal map, neutralize scope** → `docs/architecture.md`
-- **Decisions + rationale** (hybrid detection, post-meta reads, dependency gating, naming) → `docs/adr/`
-- **Accepted detection gaps** (secondary nav, Customizer layer, archive featured image, Page Hero ambiguity) → architecture.md V20–V22 + signal map
+- **Decisions + rationale** (hybrid detection, post-meta reads, dependency gating, naming, content-title meaning) → `docs/adr/`
+- **Accepted detection gaps** (secondary nav, Customizer layer, featured-image Page Hero ambiguity, and — since ADR-0005 — Meaning B having no signal at all) → architecture.md V20–V22 + "Accepted gap: Meaning B" + signal map
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, ADR-0003
 - **In-flight work + deferred items** → `SPEC.md`, `docs/ROADMAP.md`
 - **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`

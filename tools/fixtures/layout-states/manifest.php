@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 3,
+	'version'   => 4,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -158,7 +158,44 @@ return array(
 				'_generate_disable_featured_image'  => 'true',
 			),
 			'display_conditions' => array(
-				array( 'rule' => 'taxonomy:department', 'object' => 'sales' ),
+				array( 'rule' => 'taxonomy:department', 'object' => '{{term:department:sales}}' ),
+			),
+		),
+
+		// --- Layout Element: content title on a NON-SINGULAR archive (V31) --
+		// Added v4 for the one claim the in-memory fake structurally cannot
+		// test: that GP genuinely leaves the archive HEADING standing when a
+		// Layout Element disables the content title. The fake can encode that
+		// belief; only a rendered archive can falsify it.
+		//
+		// The mechanism (class-layout.php:324) is a single unguarded
+		// add_filter( 'generate_show_title', '__return_false' ) — and on an
+		// archive that filter gates the ITEM titles inside loop cards
+		// (content.php:35), not the <h1 class="page-title"> heading, which is a
+		// different hook entirely (generate_archive_title, archive.php:34). So
+		// one element produces both halves of the assertion: item titles gone,
+		// heading intact.
+		//
+		// Targets the SAME core-structures archive as the featured-image fixture
+		// above rather than seeding another — see `foreign_dependencies`. Kept as
+		// its own element, not folded into that one, so the two archive claims
+		// fail independently and name their own cause.
+		//
+		// KEY TRAP (survey rows 3 vs 4): this is the LAYOUT element key,
+		// _generate_disable_content_title. The Page Hero Block element uses
+		// _generate_disable_title — a different key for what the UI presents as
+		// the same toggle, and a fixture written against the wrong one reports
+		// the opposite of the truth.
+		'ls-el-layout-title-archive' => array(
+			'post_title'  => 'LS: Layout — disable content title (archive)',
+			'post_name'   => 'ls-el-layout-title-archive',
+			'post_status' => 'publish',
+			'meta'        => array(
+				'_generate_element_type'          => 'layout',
+				'_generate_disable_content_title' => 'true',
+			),
+			'display_conditions' => array(
+				array( 'rule' => 'taxonomy:department', 'object' => '{{term:department:sales}}' ),
 			),
 		),
 
@@ -437,11 +474,12 @@ return array(
 	// Only ONE such dependency, and it is deliberate: V22 needs a real
 	// non-singular archive with posts, and core-structures already seeds a
 	// populated `department` taxonomy. Re-seeding a private archive would
-	// duplicate their surface for no gain.
+	// duplicate their surface for no gain. Since v4 the V31 page-title check
+	// reuses the same archive, for the same reason.
 	// -----------------------------------------------------------------------
 	'foreign_dependencies' => array(
 		'core-structures' => array(
-			'department:sales' => 'Non-singular archive for V22 featured-image config-replay (/department/sales/). Needs >=1 published post assigned, else the archive 404s and the test vacuously passes.',
+			'department:sales' => 'Non-singular archive for V22 featured-image config-replay and the V31 page-title render check (/department/sales/). Needs >=1 published post assigned, else the archive 404s and BOTH tests vacuously pass — the V31 assertions are absence checks against the response body, so a 404 satisfies them for the wrong reason.',
 		),
 	),
 );

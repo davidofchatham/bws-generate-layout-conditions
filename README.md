@@ -43,7 +43,7 @@ What each condition rule detects and its corresponding `body` class:
 | Secondary Nav Active | Secondary nav not disabled (post metabox only) | `gp-no-secondary-nav` (when false) | — |
 | Top Bar Active | Top bar not disabled | `gp-no-top-bar` (when false) | — |
 | Featured Image Active | Featured image not disabled by config | `gp-no-featured-image` (when false) | `featured-image-active` (different — render-based) |
-| Content Title Active | Content title not disabled | `gp-no-content-title` (when false) | — |
+| Content Title Active | The **page** title is not disabled — by the per-post metabox or a Layout Element. Moving the title into a Page Hero does not count as disabling it. Always true off singular pages (see limitations) | `gp-no-content-title` (when false) | — |
 | Left Sidebar Active | Left sidebar renders (layout = left or both) | — | `left-sidebar` |
 | Right Sidebar Active | Right sidebar renders (layout = right or both) | — | `right-sidebar` |
 | No Sidebars Active | Sidebar layout = none | — | `no-sidebar` |
@@ -54,13 +54,16 @@ Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds n
 
 A few configurations cannot be detected reliably or at all:
 
-- **Moving the title or featured image into another element reads as disabling it.** When an element renders the title or featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affected:
-  - **Page Hero "Disable title" / "Disable featured image" toggles.**
-  - **Legacy Page Hero (Header Element)** and the **Page Header module** — these need no toggle. Putting `{{post_title}}` in their content suppresses the native title on its own. (Title only; the featured image is unaffected by this path.)
+- **Moving the featured image into another element reads as disabling it.** When an element renders the featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affects the **Page Hero "Disable featured image" toggle**.
 
   Two catches that may not be obvious:
-  - If you apply display conditions to blocks *within* the element hoping to allow post-level control of the featured image or title, those blocks will be hidden regardless of post settings — they count as disabled.
-  - `gp-no-content-title` and/or `gp-no-featured-image` are injected into the `body` classes regardless of whether the title or image is shown within the element.
+  - If you apply display conditions to blocks *within* the element hoping to allow post-level control of the featured image, those blocks will be hidden regardless of post settings — they count as disabled.
+  - `gp-no-featured-image` is injected into the `body` classes regardless of whether the image is shown within the element.
+
+  **The content title no longer works this way** — moving the title into a Page Hero, a legacy Page Hero, or the Page Header module counts as moving it, not removing it, so **Content Title Active stays true** and blocks inside the hero still render. Only the two settings that genuinely say "no title here" turn it off: the per-post **Disable Elements** metabox and a **Layout Element's** content-title setting.
+- **There is no condition for "is the theme's own title slot empty?"** A block placed *outside* a hero, hiding itself to avoid a duplicate title or to compensate for missing spacing, has nothing to key on. Conditions here answer "has the title been disabled", not "where is it rendered".
+- **A hero that disables the title but doesn't render one** still reports Content Title Active as true. The setting says the title moved; nothing can tell that it moved into an element that then left it out.
+- **Content Title Active describes the page title, not the titles on archive cards.** On an archive it reports the heading at the top of the page — and no GeneratePress setting can disable that heading, so it is always true there. A Layout Element's content-title setting does hide the titles on the loop cards, but those are a different thing and this plugin does not report on them.
 - **Featured image disabled on archives via a Layout Element** — detection is limited to singular pages.
 - **Secondary nav disabled via a Layout Element** — only the per-post Secondary Nav toggle is detected.
 
