@@ -305,24 +305,9 @@ Framing V21 as "detect the relocations and subtract them" led to an over-built p
 | Post metabox (writers 1 + 2 collapse — same key) | `_generate-disable-headline` | `post_metabox_disables()` |
 | Layout Element (writer 3) | `_generate_disable_content_title` | `layout_element_disables()` |
 
-Relocations (rows 4/5/6) are simply **never read** — you stop consulting the poisoned hook rather than compensating for it. So:
+Relocations (rows 4/5/6) are simply **never read** — you stop consulting the poisoned hook rather than compensating for it.
 
-```php
-private static function is_content_title_disabled() {
-    // Off singular no writer targets the page-title role (V31).
-    if ( ! self::env()->is_singular() ) {
-        return false;
-    }
-
-    if ( self::post_metabox_disables( '_generate-disable-headline' ) ) {
-        return true;
-    }
-
-    return self::layout_element_disables( '_generate_disable_content_title' );
-}
-```
-
-Byte-identical in shape to `is_header_disabled()` / `is_footer_disabled()` apart from the leading V31 gate, which exists because `layout_element_disables()` has no singular guard of its own (`post_metabox_disables()` does). The Detector's internal state map is **disable**-polarity throughout; the condition layer inverts it to the "Active" label. **This is the same problem as V2/ADR-0001** — hook-state poisoned by an element that removes the native hook for its own reasons — and it takes the same fix. Consequences:
+The resulting `is_content_title_disabled()` (`includes/class-detector.php`) is a V31 singular gate over the two rows above, byte-identical in shape to `is_header_disabled()` / `is_footer_disabled()` otherwise. The gate is explicit because `layout_element_disables()` has no singular guard of its own (`post_metabox_disables()` does). The Detector's internal state map is **disable**-polarity throughout; the condition layer inverts it to the "Active" label. Read the function, not a copy of it — this file quotes *upstream* source as evidence and deliberately keeps no copy of our own, which would drift silently on the next edit. **This is the same problem as V2/ADR-0001** — hook-state poisoned by an element that removes the native hook for its own reasons — and it takes the same fix. Consequences:
 
 - Rows 5/6 need **no detection at all**. The `strpos`-on-content machinery, the `generate_page_header_get_options()` call, and its T14 canary line all dropped from scope and were never built. (The survey above stays — it is what proves those rows are relocations rather than disables, which is the premise this simplification rests on.)
 - **V29 closes as a side effect**: reading `_generate-disable-headline` directly removes the dependency on GP Premium's redundant `__return_false`.
