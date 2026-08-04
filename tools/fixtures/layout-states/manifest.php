@@ -204,11 +204,23 @@ return array(
 		// So V21 is about this element, and these two keys are real PHP
 		// booleans (register_meta, class-block-elements.php:1435+).
 		//
+		// Still true as of the 2026-07-29 writer survey, with one addition: the
+		// legacy Header Element has no title TOGGLE, but it does suppress the
+		// title by another route — a literal {{post_title}} in its content
+		// (class-hero.php:889, survey row 5). Same for the Page Header module
+		// (row 6). Neither is fixtured; see the fixtures README.
+		//
+		// Key trap (survey row 3 vs 4): the LAYOUT element uses a DIFFERENT key
+		// for this same signal — _generate_disable_content_title
+		// (class-layout.php:217) — while the BLOCK element below uses
+		// _generate_disable_title. Featured image shares one key across both.
+		//
 		// The ambiguity being pinned: the Hero EMBEDS the image/title itself,
 		// so it removes the same hooks the Detector reads. Detector reports
 		// "disabled" while both are visibly active via the Hero. v1 behavior
 		// is hook-state-wins; this fixture exists to CHARACTERIZE that, not to
-		// assert it is correct. Do not "fix" it without the ADR toggle.
+		// assert it is correct. Do not "fix" it without resolving which meaning
+		// the rule carries (architecture.md, "Two meanings").
 		'ls-el-page-hero' => array(
 			'post_title'  => 'LS: Page Hero — disable title + featured image',
 			'post_name'   => 'ls-el-page-hero',
