@@ -40,7 +40,7 @@ What each condition rule detects and its corresponding `body` class:
 | Header Active | Header not disabled | `gp-no-header` (when false) | — |
 | Footer Active | Footer not disabled | `gp-no-footer` (when false) | — |
 | Primary Nav Active | Primary nav not disabled | `gp-no-primary-nav` (when false) | — |
-| Secondary Nav Active | Secondary nav not disabled (post metabox only) | `gp-no-secondary-nav` (when false) | — |
+| Secondary Nav Active | Secondary nav not disabled | `gp-no-secondary-nav` (when false) | — |
 | Top Bar Active | Top bar not disabled | `gp-no-top-bar` (when false) | — |
 | Featured Image Active | Featured image not disabled by config | `gp-no-featured-image` (when false) | `featured-image-active` (different — render-based) |
 | Content Title Active | The **page** title is not disabled — by the per-post metabox or a Layout Element. Moving the title into a Page Hero does not count as disabling it. Always true off singular pages (see limitations) | `gp-no-content-title` (when false) | — |
@@ -54,9 +54,13 @@ Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds n
 
 ### Not detected
 
+All three below are the same signal — **Featured Image Active** on singular pages, which is the last rule still read from GeneratePress's live hooks rather than from your settings. Everything else, and the featured image on archives, reads settings directly and is unaffected.
+
 - **Moving the featured image into another element reads as disabling it.** When an element renders the featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affects the **Page Hero "Disable featured image"** toggle. Two consequences: blocks *within* the element are hidden regardless of post-level settings, and `gp-no-featured-image` is added to the `body` classes whether or not the image renders inside the element.
-- **Featured image disabled on archives via a Layout Element** — detection is limited to singular pages.
-- **Secondary nav disabled via a Layout Element** — only the per-post Secondary Nav toggle is detected.
+- **A featured image position other than "Below title" reads as disabled everywhere.** Customizer → Layout → Blog offers three positions, and this plugin watches only the one GeneratePress uses for **Below title**. Set it to *Inside content* or *Above content* and Featured Image Active is false on every singular page while the image renders normally. Workaround: use Below title, or don't gate on this rule.
+- **The featured image rule needs GP Premium's Blog module.** The function it watches for ships in that module. With it deactivated the rule is false on every singular page.
+
+The post-level **Disable Elements → Featured Image** toggle is also not reported by this rule — it suppresses a different image slot than the one being watched.
 
 ### Out of scope by design
 
