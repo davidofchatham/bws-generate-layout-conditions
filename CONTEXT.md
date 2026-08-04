@@ -88,7 +88,7 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 
 - **Invariants, bug ledger, signal map, neutralize scope** → `docs/architecture.md`
 - **Decisions + rationale** (hybrid detection, post-meta reads, dependency gating, naming, content-title meaning) → `docs/adr/`
-- **Accepted detection gaps** (secondary nav, Customizer layer, featured-image Page Hero ambiguity, and — since ADR-0005 — Meaning B having no signal at all) → architecture.md V20–V22 + "Accepted gap: Meaning B" + signal map
+- **Accepted detection gaps** (Customizer layer, featured-image Page Hero ambiguity plus its two false-"disabled" directions, and — since ADR-0005 — Meaning B having no signal at all) → architecture.md V20–V22, V33 + "Accepted gap: Meaning B" + signal map. Secondary nav is **no longer** on this list (V32/T17). Note what closed it: the gap was recorded as "no clean hook signal", a statement about one mechanism, and it survived the arrival of the other. Worth re-reading the remaining gaps with that in mind
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, ADR-0003
 - **In-flight work + deferred items** → `SPEC.md`, `docs/ROADMAP.md`
 - **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`

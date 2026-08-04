@@ -244,12 +244,32 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
-	// Secondary nav — post-meta only (no clean hook signal; Layout-Element
-	// disable via has_nav_menu filter not detectable cleanly — accepted gap)
+	// Secondary nav — config-replay both layers (T17, closes the V32 gap)
+	//
+	// There is no readable hook signal at all here: GP's Layout Element disables
+	// the location with an ARRAY callback on `has_nav_menu`
+	// (class-layout.php:312) and this plugin's own suppression uses a named
+	// function on the same filter — neither is what has_hook() would look for,
+	// and a location-blind probe cannot tell "secondary unassigned" from
+	// "secondary disabled" anyway. Config-replay sidesteps the question: it
+	// reads what was configured, never what the filter stack looks like.
+	//
+	// Note the Layout Element key is *_navigation, not the *-nav of the metabox
+	// key — they are not the same string with a different separator
+	// (class-layout.php:209 vs disable-elements/functions/functions.php:32).
+	//
+	// No is_singular() gate on the replay branch: GP adds the filter without one
+	// (class-layout.php:311), so a Layout Element disables the secondary nav on
+	// archives too. Same asymmetry as featured image (V22). The metabox layer
+	// stays singular-only through post_metabox_disables() (ADR-0002).
 	// -----------------------------------------------------------------------
 
 	private static function is_secondary_nav_disabled() {
-		return self::post_metabox_disables( '_generate-disable-secondary-nav' );
+		if ( self::post_metabox_disables( '_generate-disable-secondary-nav' ) ) {
+			return true;
+		}
+
+		return self::layout_element_disables( '_generate_disable_secondary_navigation' );
 	}
 
 	// -----------------------------------------------------------------------

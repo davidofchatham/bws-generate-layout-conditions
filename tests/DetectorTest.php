@@ -226,6 +226,49 @@ class DetectorTest extends TestCase {
 		$this->assertTrue( BWS_GP_Layout_Detector::states()['featured_image'] );
 	}
 
+	// --- V32/T17: secondary nav replays the Layout Element layer too --------
+	//
+	// The metabox layer is already covered by the ADR-0002 case above. These two
+	// pin the layer that had no signal at all before T17, on both page types —
+	// GP adds its `has_nav_menu` filter without an is_singular() guard, so the
+	// off-singular case is behaviour, not an accident of the helper.
+
+	public function test_secondary_nav_layout_element_disables_on_singular_v32(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->layout_elements['_generate_disable_secondary_navigation'] = array( 42 );
+		$this->env->meta[42] = array( '_generate_disable_secondary_navigation' => 'true' );
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['secondary_nav'],
+			'a Layout Element secondary-nav disable must be replayed — no hook carries it (V32)'
+		);
+	}
+
+	public function test_secondary_nav_layout_element_disables_off_singular_v32(): void {
+		$this->env->singular = false;
+		$this->env->layout_elements['_generate_disable_secondary_navigation'] = array( 42 );
+		$this->env->meta[42] = array( '_generate_disable_secondary_navigation' => 'true' );
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['secondary_nav'],
+			'GP adds the has_nav_menu filter unguarded, so the element disables on archives too (V32)'
+		);
+	}
+
+	/**
+	 * The metabox key is `_generate-disable-secondary-nav`, the Layout Element key
+	 * is `_generate_disable_secondary_navigation` — different words, not just a
+	 * different separator. Reading the metabox key on the element layer would be
+	 * silently inert, so pin that the element layer uses its own.
+	 */
+	public function test_secondary_nav_replay_uses_the_element_key_not_the_metabox_key_v32(): void {
+		$this->env->layout_elements['_generate-disable-secondary-nav'] = array( 42 );
+		$this->env->meta[42] = array( '_generate-disable-secondary-nav' => 'true' );
+
+		$this->assertFalse( BWS_GP_Layout_Detector::states()['secondary_nav'] );
+	}
+
 	// --- V4/V23: replay passes all three condition metas, normalized --------
 
 	public function test_replay_normalizes_unset_condition_meta_v23(): void {
