@@ -256,6 +256,76 @@ if ( ! $sales ) {
 	$ok( sprintf( 'department:sales carries %d post(s)', $sales->count ) );
 }
 
+// ---------------------------------------------------------------------------
+// 6. Archive elements actually APPLY on the archive (added v4).
+//
+// The gap this closes bit for three blueprint versions. Both archive elements
+// stored their display-condition `object` as the term SLUG. GP resolves a
+// taxonomy archive to rule `taxonomy:{taxonomy}` with object = the term **ID**
+// (class-conditions.php:225-231) and compares with a non-strict in_array(), so
+// under PHP 8 `7 == 'sales'` is false and neither element ever applied to
+// /department/sales/. Every existing check still passed: the elements existed,
+// were published, carried the right meta, and answered the right meta_query.
+// Nothing evaluated their conditions against a real archive query — the exact
+// "fixture that verifies itself and proves nothing" shape the README warns of.
+//
+// Requires a bootstrapped ARCHIVE query, not a page one: show_data() reads the
+// current request, and with_page() cannot produce is_tax().
+// ---------------------------------------------------------------------------
+WP_CLI::log( '' );
+WP_CLI::log( '6. Archive elements apply on the archive' );
+
+if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
+	$bad( 'GeneratePress_Conditions ABSENT — cannot verify archive element conditions' );
+} elseif ( ! $sales ) {
+	$bad( 'department:sales missing — archive element conditions unverifiable' );
+} else {
+	global $wp_query, $wp_the_query;
+	$saved_query = $wp_query;
+	$saved_the   = $wp_the_query;
+
+	wp( 'department=sales' );
+
+	$on_archive = is_tax( 'department', 'sales' );
+
+	$archive_results = array();
+	foreach ( array( 'ls-el-layout-featured-archive', 'ls-el-layout-title-archive' ) as $slug ) {
+		$eid = isset( $element_ids[ $slug ] ) ? $element_ids[ $slug ] : 0;
+
+		if ( ! $eid ) {
+			$archive_results[ $slug ] = null;
+			continue;
+		}
+
+		$archive_results[ $slug ] = (bool) GeneratePress_Conditions::show_data(
+			get_post_meta( $eid, '_generate_element_display_conditions', true ) ?: array(),
+			get_post_meta( $eid, '_generate_element_exclude_conditions', true ) ?: array(),
+			get_post_meta( $eid, '_generate_element_user_conditions', true ) ?: array()
+		);
+	}
+
+	$wp_query     = $saved_query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+	$wp_the_query = $saved_the;   // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+	wp_reset_postdata();
+
+	// Without this the two checks below would pass vacuously on a query that
+	// never became an archive.
+	$on_archive
+		? $ok( 'archive query bootstrapped (is_tax department:sales)' )
+		: $bad( 'wp( "department=sales" ) did not produce a taxonomy archive — the checks below prove nothing' );
+
+	foreach ( $archive_results as $slug => $applies ) {
+		if ( null === $applies ) {
+			$bad( "{$slug} MISSING — cannot check whether it applies on the archive" );
+			continue;
+		}
+
+		$applies
+			? $ok( "{$slug} applies on /department/sales/" )
+			: $bad( "{$slug} does NOT apply on /department/sales/ — its display-condition object must be the term ID, not the slug (GP compares term_id; PHP 8 makes 7 == 'sales' false). Reseed at blueprint v4+." );
+	}
+}
+
 WP_CLI::log( '' );
 WP_CLI::log( sprintf( 'Result: %d passed, %d failed', $pass, $fail ) );
 WP_CLI::log( '' );

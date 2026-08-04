@@ -33,16 +33,21 @@ them. These fixtures make them falsifiable:
 |---|---|
 | `ls-el-header-block` / `ls-el-footer-block` | V2 — a Block Element on `generate_header`/`generate_footer` unconditionally `remove_action`s the native construct, so hook-state reads "disabled" on every page carrying it. The poisoned signal config-replay exists to route around. |
 | `ls-el-layout-header-footer` | V2 — the config-replay layer itself. |
-| `ls-el-layout-featured-archive` | V22/T8 — featured-image disable on a **non-singular** archive, where hook-state is meaningless (V20/B2). Targets `/department/sales/`. |
+| `ls-el-layout-featured-archive` | V22/T8 — featured-image disable on a **non-singular** archive, where hook-state is meaningless (V20/B2). Targets `/department/sales/`. **Inert from v1 to v3** — its condition object was the term slug where GP compares the term ID, so it never applied to any request (B6). Fixed at v4; `verify.php` §6 now proves it applies. |
 | `ls-el-layout-excluded` | V4 — replay must pass all **three** condition metas to `show_data()`. Verified discriminating: display-only `true`, all-three `false`. A two-arg replay would report this page disabled. |
-| `ls-el-page-hero` | V21 — characterizes the Page Hero **Block Element** ambiguity (Hero embeds title/image, removing the hooks the Detector reads). Records current behaviour; does not assert it is correct. Covers **one of six** content-title writers: the 2026-07-29 survey (`architecture.md`) found two toggle-less relocation paths — legacy Page Hero and the Premium Page Header module, both keyed on a `{{post_title}}` template tag — that **no fixture exercises**. Add those before building any V21 fix, or it will be validated against a third of the surface. |
+| `ls-el-page-hero` | V21 — the Page Hero **Block Element** relocation (Hero embeds title/image, removing the hooks the Detector used to read). Since ADR-0005 this is the *featured-image* ambiguity fixture plus the content-title **regression guard**: the title half must now report active here. The other five content-title writers are **deliberately unread**, not uncovered — ADR-0005 stopped consulting the hook rather than detecting the writers, so the two toggle-less relocation paths (legacy Page Hero, the deprecated Page Header module) need no fixture. They would be needed only for a future Meaning-B rule, and the survey in `architecture.md` is the spec for that. |
+| `ls-el-layout-title-archive` | V31 — the one claim the PHPUnit fake structurally cannot test: that GP leaves the archive **heading** standing when a Layout Element disables the content title. The fake can encode that belief; only a rendered archive can falsify it. Targets `/department/sales/`, the same archive as the featured-image fixture. Asserted by `render-surface.sh` §6, never from wp-cli. |
 | `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
 
 ## The four test files, and the difference
 
 `verify.php` asserts the **fixtures** landed and discriminate — so a suite
-failure means "the Detector regressed", not "the fixture seeded nothing".
+failure means "the Detector regressed", not "the fixture seeded nothing". 32
+assertions. Its §6 (added v4) is the one that closes B6: it bootstraps a real
+**archive** query and asserts both archive elements actually apply there.
+Existence, publish status and meta shape were never the weak link — a fixture
+can pass all three and still match no request.
 
 `seam-fidelity.php` asserts the **production adapter**
 (`BWS_GP_WP_Environment`) reads them correctly. It is the only thing pinning
@@ -82,7 +87,7 @@ exactly one assertion, with a message naming the cause.
 
 `render-surface.sh` is the only one that is **not** wp-cli — it asserts on real
 HTTP responses, because several invariants here are structurally invisible from
-the CLI. 18 assertions:
+the CLI. 33 assertions:
 
 | Section | Pins |
 |---|---|
@@ -91,6 +96,7 @@ the CLI. 18 assertions:
 | V24 | Both directions: CSS-only toggles (featured image, secondary nav) leave markup fully present; the PHP-removed one (content title) does not. Asserting only one direction would let "PHP-removed everything" or "removed nothing" pass half the suite. |
 | V25 | On the primary-nav page, `#site-navigation` is gone (PHP path) while `#mobile-header` survives — the documented partial-CSS regression, observed for the first time at blueprint v2. |
 | control | The baseline renders every marker the sections above assert the absence of. Without it, a change that removed these elements everywhere would pass the whole suite. |
+| V31 / ADR-0005 | The only assertions on an **archive**, and the only place the page-title-vs-item-title split is observable: with a Layout Element content-title disable on `/department/sales/`, the `<h1 class="page-title">` heading is PRESENT, the loop-card `entry-title`s are GONE, and `gp-no-content-title` is absent. The controls are what keep it honest — the loop-card absence proves the element is actually live (otherwise the body-class check passes for the wrong reason), and `gp-no-content-title` must still appear on the metabox-disabled page, which is also the render-level proof V29 is closed. |
 
 **Two caches will lie to you**, and both produce false GREENS rather than
 noisy failures:
@@ -152,13 +158,15 @@ tools/fixtures/layout-states/render-surface.sh --site <site>
 **last** among the eval-file suites and in its own process. Do not fold its
 assertions into another file.
 
-**Blueprint v2 is required** for the render harness. v1 fixtures cannot support
-it: no page carried a featured image, no menu was assigned to either nav
-location, and `generate_menu_plus_settings` was written with `set_theme_mod()`
-while GP Premium reads it exclusively via `get_option()` (~20 call sites, zero
-`get_theme_mod`) — so the mobile header was never enabled. Each of those absences
-turns a specific assertion into a vacuous pass, which is why the harness checks
-all four before asserting anything.
+**Blueprint v4 is required** for the render harness. Earlier versions cannot
+support it, and each shortfall turns a specific assertion into a vacuous pass —
+which is why the harness checks them before asserting anything. v1: no page
+carried a featured image, no menu was assigned to either nav location, and
+`generate_menu_plus_settings` was written with `set_theme_mod()` while GP Premium
+reads it exclusively via `get_option()` (~20 call sites, zero `get_theme_mod`),
+so the mobile header was never enabled. v2: no thumbnail on the two nav-toggle
+pages, making T10's over-suppression checks vacuous. v3: no archive
+content-title element, so §6 had nothing to observe.
 
 Or via the orchestrator, which runs the whole family in compose order:
 `bin/seed-all.sh <site>`.
@@ -200,6 +208,17 @@ so the mobile header stayed off and V25 could never be observed.
 Nothing catches this by itself. The seed reports success, `verify.php` can
 re-read exactly what it wrote, and the assertion that depends on it passes
 *because the surface it checks renders nothing either way.*
+
+**It recurred at v4, in a second form** (B6): both archive elements stored their
+display-condition `object` as the term **slug**, while GP resolves a taxonomy
+archive to `taxonomy:{taxonomy}` with object = the term **ID**
+(`class-conditions.php:225-231`) and compares non-strictly — and under PHP 8
+`7 == 'sales'` is false. So the elements matched no request at all, from v1
+through v3. Not a storage-backend mistake this time but the same shape: a value
+written in a form the consumer never matches, silent about it. Both times the
+fixture was readable, well-formed, and provably useless. The generalisation:
+**a fixture is only real once something asserts it CHANGED an outcome** —
+existence, meta shape and query-visibility checks all passed throughout.
 
 When seeding anything that is not post meta, confirm which API the CONSUMER
 reads before choosing how to write it:

@@ -126,17 +126,84 @@ class DetectorTest extends TestCase {
 		$this->env->singular = true;
 		$this->env->hooks    = array(
 			// top bar + featured image render hooks REMOVED (disabled)…
-			// …and the disable filters PRESENT for nav + title.
+			// …and the disable filter PRESENT for nav.
+			// Content title is NOT here: it left hook-state for config-replay
+			// (ADR-0005) — its hook-state case is asserted false below.
 			'generate_navigation_location|__return_false',
-			'generate_show_title|__return_false',
 		);
 
 		$states = BWS_GP_Layout_Detector::states();
 
 		$this->assertTrue( $states['primary_nav'] );
-		$this->assertTrue( $states['content_title'] );
 		$this->assertTrue( $states['top_bar'] );
 		$this->assertTrue( $states['featured_image'] );
+	}
+
+	// --- V31/ADR-0005: content title = the PAGE-TITLE role, Meaning A ------
+	//
+	// Same shape as the featured-image replay-vs-hook pair above, for a sibling
+	// signal: config-replay on singular, a constant off it. The hook-state case
+	// is the meaning flip — it asserted TRUE before ADR-0005.
+
+	public function test_content_title_layout_element_disables_on_singular_adr0005(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->layout_elements['_generate_disable_content_title'] = array( 42 );
+		$this->env->meta[42] = array( '_generate_disable_content_title' => 'true' );
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['content_title'],
+			'a Layout Element content-title disable is a genuine disable on singular (ADR-0005)'
+		);
+	}
+
+	public function test_content_title_metabox_disables_on_singular_adr0005(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->meta[10]   = array( '_generate-disable-headline' => 'true' );
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['content_title'],
+			'the per-post metabox key must be read directly, not inherited from GP Premium\'s redundant filter (V29)'
+		);
+	}
+
+	public function test_content_title_ignores_hook_state_adr0005(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		// A Page Hero relocated the title and added GP's disable filter. Nothing
+		// is configured as disabled, so Meaning A must report the title active.
+		$this->env->hooks = array( 'generate_show_title|__return_false' );
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['content_title'],
+			'relocation is not a disable — the poisoned hook must not be read (ADR-0005)'
+		);
+	}
+
+	public function test_content_title_active_off_singular_despite_layout_element_v31(): void {
+		$this->env->singular = false;
+		$this->env->layout_elements['_generate_disable_content_title'] = array( 42 );
+		$this->env->meta[42] = array( '_generate_disable_content_title' => 'true' );
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['content_title'],
+			'off singular the toggle reaches item titles only; the page-title role is untouched (V31)'
+		);
+	}
+
+	/**
+	 * Control for the case above, not an independent guard: it passes with or
+	 * without the V31 gate. Its job is to rule out an always-disabled reading,
+	 * which would make the "despite Layout Element" case pass for the wrong reason.
+	 */
+	public function test_content_title_active_off_singular_with_nothing_set_v31(): void {
+		$this->env->singular = false;
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['content_title'],
+			'bare off-singular request must report the page title active'
+		);
 	}
 
 	// --- V20/V22/B2: featured image off-singular = replay, never hook-state -

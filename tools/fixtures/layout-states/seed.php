@@ -233,24 +233,51 @@ foreach ( $manifest['pages'] as $slug => $page ) {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve {{fixture-slug}} placeholders to seeded page IDs.
+ * Resolve {{...}} placeholders in a condition `object` to a real ID.
+ *
+ * Two forms:
+ *   {{fixture-slug}}            → the seeded page ID
+ *   {{term:taxonomy:term-slug}} → the term ID
  *
  * GP stores `object` as a STRING (sanitize_key() in the metabox save handler),
  * and show_data() compares with a non-strict in_array(), so an int would still
  * match at runtime — but a string is what the admin UI writes, and fixtures
  * that diverge from the UI stop being evidence about production.
+ *
+ * THE TERM FORM IS NOT COSMETIC. `get_current_location()` resolves a taxonomy
+ * archive to rule `taxonomy:{taxonomy}` with object = **`$queried_object->term_id`**
+ * (class-conditions.php:225-231) — never the slug. show_data() then compares with
+ * a non-strict `in_array()`, and under PHP 8 `7 == 'sales'` is FALSE, so a
+ * slug-valued object silently never matches. That is exactly how the archive
+ * fixtures shipped from v1 through v3: seeded, verified, readable, and inert —
+ * `ls-el-layout-featured-archive` never once applied to /department/sales/, and
+ * nothing noticed because no suite evaluated its conditions against a real
+ * archive query. verify.php §6 now does (added v4).
  */
 $resolve_object = function ( $object ) use ( $page_ids ) {
 	if ( ! is_string( $object ) || ! preg_match( '/^\{\{(.+)\}\}$/', $object, $m ) ) {
 		return $object;
 	}
 
-	$slug = $m[1];
-	if ( ! isset( $page_ids[ $slug ] ) ) {
-		WP_CLI::error( sprintf( 'display condition references unknown page fixture "%s"', $slug ) );
+	$token = $m[1];
+
+	if ( 0 === strpos( $token, 'term:' ) ) {
+		list( , $taxonomy, $term_slug ) = array_pad( explode( ':', $token, 3 ), 3, '' );
+
+		$term = get_term_by( 'slug', $term_slug, $taxonomy );
+
+		if ( ! $term || is_wp_error( $term ) ) {
+			WP_CLI::error( sprintf( 'display condition references unknown term "%s" in taxonomy "%s"', $term_slug, $taxonomy ) );
+		}
+
+		return (string) $term->term_id;
 	}
 
-	return (string) $page_ids[ $slug ];
+	if ( ! isset( $page_ids[ $token ] ) ) {
+		WP_CLI::error( sprintf( 'display condition references unknown page fixture "%s"', $token ) );
+	}
+
+	return (string) $page_ids[ $token ];
 };
 
 $element_ids = array();
