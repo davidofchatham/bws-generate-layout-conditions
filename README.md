@@ -52,20 +52,17 @@ Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds n
 
 ## Known limitations
 
-A few configurations cannot be detected reliably or at all:
+### Not detected
 
-- **Moving the featured image into another element reads as disabling it.** When an element renders the featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affects the **Page Hero "Disable featured image" toggle**.
-
-  Two catches that may not be obvious:
-  - If you apply display conditions to blocks *within* the element hoping to allow post-level control of the featured image, those blocks will be hidden regardless of post settings — they count as disabled.
-  - `gp-no-featured-image` is injected into the `body` classes regardless of whether the image is shown within the element.
-
-  **The content title no longer works this way** — moving the title into a Page Hero, a legacy Page Hero, or the Page Header module counts as moving it, not removing it, so **Content Title Active stays true** and blocks inside the hero still render. Only the two settings that genuinely say "no title here" turn it off: the per-post **Disable Elements** metabox and a **Layout Element's** content-title setting.
-- **There is no condition for "is the theme's own title slot empty?"** A block placed *outside* a hero, hiding itself to avoid a duplicate title or to compensate for missing spacing, has nothing to key on. Conditions here answer "has the title been disabled", not "where is it rendered".
-- **A hero that disables the title but doesn't render one** still reports Content Title Active as true. The setting says the title moved; nothing can tell that it moved into an element that then left it out.
-- **Content Title Active describes the page title, not the titles on archive cards.** On an archive it reports the heading at the top of the page — and no GeneratePress setting can disable that heading, so it is always true there. A Layout Element's content-title setting does hide the titles on the loop cards, but those are a different thing and this plugin does not report on them.
+- **Moving the featured image into another element reads as disabling it.** When an element renders the featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affects the **Page Hero "Disable featured image"** toggle. Two consequences: blocks *within* the element are hidden regardless of post-level settings, and `gp-no-featured-image` is added to the `body` classes whether or not the image renders inside the element.
 - **Featured image disabled on archives via a Layout Element** — detection is limited to singular pages.
 - **Secondary nav disabled via a Layout Element** — only the per-post Secondary Nav toggle is detected.
+
+### Out of scope by design
+
+- **Content Title Active means "the title is not disabled", never "the theme is rendering it in its usual place".** Moving the title into a Page Hero counts as moving it, so the condition stays true and blocks inside the hero render — that is the point. Only the per-post **Disable Elements** metabox and a **Layout Element's** content-title setting turn it off. The trade: a block *outside* the hero wanting to hide itself to avoid a duplicate title has no rule to key on. Put it inside the hero, or gate it with the element's own display conditions.
+- **A Page Hero that disables the title and then doesn't render one** still reports Content Title Active as true. The setting says the title moved; nothing can tell it moved somewhere you left it out.
+- **On archives, Content Title Active describes the heading at the top of the page** — which no GeneratePress setting can disable, so it is always true there. A Layout Element's content-title setting does hide the titles on the loop cards, but those are a different element and this plugin does not report on them. Don't use this rule to gate anything per-card.
 
 ## Design notes
 
