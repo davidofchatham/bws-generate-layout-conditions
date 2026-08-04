@@ -337,7 +337,7 @@ Grouping these by which hook gates them is the wrong cut — it puts a page-leve
 
 This collapses the earlier two-rule plan. **No new rule, no new body class, no naming problem**: the rule count stays 10, `gp-no-content-title` keeps its name, and the persisted slug `content_title_active` is untouched (V27 — no migration). Only the archive **branch** of the existing signal changes, from reporting loop cards to reporting the heading.
 
-Behaviour change to flag on land: anything keyed on `gp-no-content-title` **on an archive** currently reflects loop-card suppression and will start reflecting the heading. Worth checking the two deployed sites' CSS before shipping.
+Behaviour change to flag on land: on an archive `gp-no-content-title` currently reflects loop-card suppression and will start reflecting the heading. **Cleared for the deployed sites 2026-07-29** — neither keys any CSS on that class, so nothing consumes the old meaning. Still a changelog item, since the class ships to any future install.
 
 ### Two meanings of "Content Title Active"
 
