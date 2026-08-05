@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 4,
+	'version'   => 5,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -199,6 +199,47 @@ return array(
 			),
 		),
 
+		// --- Layout Element: SECONDARY NAV, singular + archive (V32/T17) ---
+		// Added v5. T17 moved secondary nav from post-meta-only to config-replay,
+		// and it shipped covered by the PHPUnit fake alone. Two claims live under
+		// that fake and neither is checkable from inside it:
+		//
+		//   1. The KEY. GP's Layout Element metabox writes
+		//      _generate_disable_secondary_navigation (class-metabox.php:1211,
+		//      sanitize map :1851) while the per-post metabox layer writes
+		//      _generate-disable-secondary-nav. Different WORDS, not one word with
+		//      two separators — `navigation` vs `nav`. The fake answers whatever
+		//      key it is handed, so a wrong key there is invisible; in production
+		//      it makes the whole layer silently inert. Exactly B6's shape.
+		//   2. The UNGATED claim. GP adds its has_nav_menu filter with no
+		//      is_singular() guard (class-layout.php:311), so the element must
+		//      disable on an ARCHIVE too. The Detector's replay branch is
+		//      deliberately ungated to match.
+		//
+		// ONE element covering BOTH page types, rather than two: the point is that
+		// a single unguarded element reaches both, and two elements would prove
+		// only that two elements work. Targets the same core-structures archive as
+		// the other two archive fixtures (see `foreign_dependencies`).
+		//
+		// The singular target is its OWN page and must stay that way. Pointing
+		// this at ls-page-baseline would strip #secondary-navigation from the
+		// control, and section 0 of render-surface.sh hard-aborts on exactly that
+		// — the baseline is the proof the marker renders at all.
+		'ls-el-layout-secondary-nav' => array(
+			'post_title'  => 'LS: Layout — disable secondary nav (singular + archive)',
+			'post_name'   => 'ls-el-layout-secondary-nav',
+			'post_status' => 'publish',
+			'meta'        => array(
+				'_generate_element_type'                 => 'layout',
+				// NOT _generate-disable-secondary-nav. See note 1 above.
+				'_generate_disable_secondary_navigation' => 'true',
+			),
+			'display_conditions' => array(
+				array( 'rule' => 'post:page', 'object' => '{{ls-page-layout-secondary-nav}}' ),
+				array( 'rule' => 'taxonomy:department', 'object' => '{{term:department:sales}}' ),
+			),
+		),
+
 		// --- Layout Element with EXCLUDE + USER conditions (V4) ------------
 		// V4: config-replay must pass all THREE condition metas to
 		// show_data(). An element that matches on display but is knocked out
@@ -322,6 +363,13 @@ return array(
 		'ls-page-excluded' => array(
 			'post_title' => 'LS: Layout Element excluded (header stays active)',
 			'post_name'  => 'ls-page-excluded',
+		),
+
+		// V32/T17 — the singular half of the secondary-nav element's reach.
+		// Its own page, not baseline: see the note on ls-el-layout-secondary-nav.
+		'ls-page-layout-secondary-nav' => array(
+			'post_title' => 'LS: Layout Element disables secondary nav',
+			'post_name'  => 'ls-page-layout-secondary-nav',
 		),
 
 		// V21 Page Hero ambiguity.

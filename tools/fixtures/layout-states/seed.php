@@ -125,8 +125,39 @@ $upsert = function ( $post_type, $post_name, array $args ) {
  * truthy check. Writing '' would therefore produce a row the admin UI can
  * never create — so null/'' means delete here too, and fixtures stay
  * byte-identical to what a human clicking the metabox would leave behind.
+ *
+ * $owned_prefixes makes the write AUTHORITATIVE rather than additive: any
+ * existing key matching one of them but absent from $meta is deleted first, so
+ * the post ends up holding exactly what the manifest says and nothing else.
+ *
+ * NOT a tidiness measure — found by mutation, v5. `$upsert` is idempotent by
+ * post_name, so a reseed reuses the post, and an additive write leaves behind
+ * every key the manifest USED to carry. Changing a manifest key therefore did
+ * not change the fixture: both the old and new rows were present, GP read the
+ * old one, and the fixture kept working. That masked a deliberate wrong-key
+ * mutation into a full green (39/39) — the harness reported a fixture that
+ * pinned the real GP key while it in fact pinned nothing, because the row it
+ * needed was left over from an earlier seed and nothing could ever remove it.
+ *
+ * The failure shape is B6's, one level up: not a fixture written in a form the
+ * consumer never matches, but a fixture whose CURRENT definition was never what
+ * the consumer read. Both are silent, both self-verify, and both are invisible
+ * to any check that only reads what is there.
+ *
+ * Prefixes are safe to sweep because these posts are wholly fixture-owned:
+ * `gp_elements` posts exist only for this blueprint, and on pages only the
+ * `_generate-disable-*` metabox namespace is swept (never `_thumbnail_id`, and
+ * never anything WordPress or another blueprint owns).
  */
-$write_meta = function ( $post_id, array $meta ) {
+$write_meta = function ( $post_id, array $meta, array $owned_prefixes = array() ) {
+	foreach ( $owned_prefixes as $prefix ) {
+		foreach ( get_post_meta( $post_id ) as $key => $unused ) {
+			if ( 0 === strpos( $key, $prefix ) && ! array_key_exists( $key, $meta ) ) {
+				delete_post_meta( $post_id, $key );
+			}
+		}
+	}
+
 	foreach ( $meta as $key => $value ) {
 		if ( null === $value || '' === $value ) {
 			delete_post_meta( $post_id, $key );
@@ -207,9 +238,12 @@ foreach ( $manifest['pages'] as $slug => $page ) {
 
 	$page_ids[ $slug ] = $id;
 
-	if ( ! empty( $page['disable_meta'] ) ) {
-		$write_meta( $id, $page['disable_meta'] );
-	}
+	// Called unconditionally, with the metabox namespace swept: a page that
+	// LOSES its disable_meta in the manifest must lose the rows too, and the
+	// `! empty()` guard this replaces meant a reseed could never take a toggle
+	// back off. Scoped to `_generate-disable-` so `_generate-sidebar-layout-meta`
+	// and `_thumbnail_id` are untouched.
+	$write_meta( $id, $page['disable_meta'] ?? array(), array( '_generate-disable-' ) );
 
 	if ( ! empty( $page['sidebar_layout'] ) ) {
 		update_post_meta( $id, '_generate-sidebar-layout-meta', $page['sidebar_layout'] );
@@ -291,7 +325,12 @@ foreach ( $manifest['elements'] as $slug => $element ) {
 
 	$element_ids[ $slug ] = $id;
 
-	$write_meta( $id, $element['meta'] );
+	// Both prefixes swept: GP uses underscores for element meta
+	// (_generate_element_type, _generate_disable_*) and the condition metas
+	// written just below share the `_generate_element_` prefix, so they are
+	// deleted here and immediately rewritten — which is what lets an element
+	// that DROPS a condition list in the manifest actually lose it.
+	$write_meta( $id, $element['meta'], array( '_generate_', '_generate-' ) );
 
 	// Conditions. Display/exclude are lists of array( rule, object ); user
 	// conditions are a FLAT list of strings (metabox save, ll.1901-1980).

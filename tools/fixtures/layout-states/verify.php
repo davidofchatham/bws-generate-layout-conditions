@@ -289,7 +289,12 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	$on_archive = is_tax( 'department', 'sales' );
 
 	$archive_results = array();
-	foreach ( array( 'ls-el-layout-featured-archive', 'ls-el-layout-title-archive' ) as $slug ) {
+	// ls-el-layout-secondary-nav added v5. It carries TWO display conditions
+	// (a page and this archive) where the other two carry one, so it is also the
+	// only fixture proving a multi-condition element still matches the archive
+	// arm — show_data() ORs the display list, but a fixture written as one
+	// condition would never catch a regression to AND.
+	foreach ( array( 'ls-el-layout-featured-archive', 'ls-el-layout-title-archive', 'ls-el-layout-secondary-nav' ) as $slug ) {
 		$eid = isset( $element_ids[ $slug ] ) ? $element_ids[ $slug ] : 0;
 
 		if ( ! $eid ) {
