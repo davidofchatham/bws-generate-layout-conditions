@@ -6,9 +6,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Single source of truth for GP disable states + sidebar layout.
  *
- * Hybrid detection: hook-state for most signals; config-replay for header, footer
- * and content title (whose hook signals are poisoned by elements that take over
- * the hook for their own reasons — ADR-0001, ADR-0005).
+ * Hybrid detection. Config-replay for header, footer and content title (whose hook
+ * signals are poisoned by elements that take over the hook for their own reasons —
+ * ADR-0001, ADR-0005) and for secondary nav (which has no readable hook signal at
+ * all — V32). Hook-state for primary nav, top bar, and featured image on singular;
+ * the last of those has known-wrong directions and is the next replay candidate
+ * (V21, V33).
  *
  * Lazy + memoized: full resolution runs ≤1× per request (V5). First call is always
  * after `wp` (body-class consumer at wp:110; condition consumer at render_block).
