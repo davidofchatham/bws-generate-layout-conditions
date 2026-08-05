@@ -257,12 +257,15 @@ class DetectorTest extends TestCase {
 	}
 
 	/**
-	 * The metabox key is `_generate-disable-secondary-nav`, the Layout Element key
-	 * is `_generate_disable_secondary_navigation` — different words, not just a
-	 * different separator. Reading the metabox key on the element layer would be
-	 * silently inert, so pin that the element layer uses its own.
+	 * Control for the two cases above, not an independent guard: it also passes
+	 * with the replay branch deleted entirely. Its job is the key-swap direction —
+	 * the metabox key is `_generate-disable-secondary-nav`, the Layout Element key
+	 * is `_generate_disable_secondary_navigation`, different words rather than one
+	 * word with two separators, so reading the metabox key on the element layer
+	 * would be silently inert. Fails with the two above when the keys are swapped.
 	 */
 	public function test_secondary_nav_replay_uses_the_element_key_not_the_metabox_key_v32(): void {
+		$this->env->singular = false; // explicit: the metabox layer must not confound this
 		$this->env->layout_elements['_generate-disable-secondary-nav'] = array( 42 );
 		$this->env->meta[42] = array( '_generate-disable-secondary-nav' => 'true' );
 
