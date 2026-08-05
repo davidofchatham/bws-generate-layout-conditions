@@ -29,12 +29,13 @@
 #   tools/fixtures/layout-states/render-surface.sh --site testbed
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-states seeded at blueprint v4+ — earlier
+# pass --env-root. Preconditions: layout-states seeded at blueprint v5+ — earlier
 # fixtures cannot support these assertions (v1: no featured image, no nav menus,
 # Menu Plus mobile header never enabled; v2: no thumbnail on the two nav-toggle
 # pages, which makes T10's over-suppression checks vacuous; v3: no archive
-# content-title element, which makes section 6 vacuous). The script verifies all
-# of that rather than trusting it.
+# content-title element, which makes section 6 vacuous; v4: no secondary-nav
+# Layout Element, which makes section 7 vacuous). The script verifies all of that
+# rather than trusting it.
 #
 # TWO ERAS OF ASSERTION, and the difference matters when reading a failure:
 #   * T11 assertions CHARACTERIZE the pre-T10 surface — which toggles GP leaves
@@ -44,9 +45,12 @@
 #     that was the V14 regression. T10 removes it in PHP, so the same fixtures now
 #     prove it is GONE. A failure there means the suppression did not run; section
 #     5 is what distinguishes "did not run" from "ran too broadly".
-#   * Section 6 (T15/T16) is a third era and the only one asserting on an ARCHIVE.
+#   * Section 6 (T15/T16) is a third era and the first to assert on an ARCHIVE.
 #     Its gp-no-content-title check is likewise an inversion: hook-state emitted
 #     that class there, Meaning A does not.
+#   * Section 7 (T17) is neither characterization nor inversion — it is the first
+#     section covering a layer that had NO signal at all before it, so both its
+#     positive assertions were red for the whole life of the plugin until T17.
 #
 set -euo pipefail
 
@@ -488,6 +492,72 @@ esac
 case "${BASELINE}" in
     *'gp-no-content-title'*) bad 'gp-no-content-title emitted on the baseline, where nothing is disabled' ;;
     *) ok 'control: no gp-no-content-title on the baseline' ;;
+esac
+
+# ---------------------------------------------------------------------------
+# 7. V32 / T17 — secondary nav replays the Layout Element layer, on both page
+#    types.
+#
+# T17 shipped covered by the PHPUnit fake only, and the fake cannot check either
+# of the two things that would break it in production:
+#
+#   * THE KEY. The Layout Element writes _generate_disable_secondary_navigation;
+#     the per-post metabox writes _generate-disable-secondary-nav. Different
+#     words, not one word with two separators. The fake returns whatever key it
+#     is handed, so a wrong key is invisible there and silently inert here. B6
+#     is the precedent: a fixture can carry the right shape and match nothing.
+#   * THE UNGATED CLAIM. GP adds its has_nav_menu filter with no is_singular()
+#     guard (class-layout.php:311), so ONE element must reach a singular page and
+#     an archive. ls-el-layout-secondary-nav carries both display conditions, so
+#     a regression that re-gates either side fails here by name.
+#
+# ASYMMETRY, deliberate: on the singular page both halves are asserted — the
+# markup is gone AND the body class is emitted — because ls-page-baseline is the
+# control proving #secondary-navigation renders at all (section 0). On the
+# ARCHIVE there is no such control: the element is what disables it, and a second
+# archive with the nav intact does not exist in this blueprint. So only the body
+# class is asserted there. It is the discriminating half anyway — it is the
+# Detector's own output, whereas the markup absence would also be satisfied by an
+# archive that never rendered a secondary nav in the first place.
+# ---------------------------------------------------------------------------
+echo ""
+echo "7. V32 — secondary nav config-replay on singular + archive"
+
+ELSECNAV=$(fetch 'ls-page-layout-secondary-nav' || true)
+
+[ -n "${ELSECNAV}" ] || err "empty response for ls-page-layout-secondary-nav — reseed layout-states at blueprint v5+. Every assertion in this section would pass vacuously."
+
+case "${ELSECNAV}" in
+    *'</html>'*) ok "ls-page-layout-secondary-nav is a complete HTML document ($(printf '%s' "${ELSECNAV}" | wc -c) bytes)" ;;
+    *) err 'ls-page-layout-secondary-nav response is not complete HTML — refusing to assert against a truncated body' ;;
+esac
+
+case "${ELSECNAV}" in
+    *'id="secondary-navigation"'*) bad '#secondary-navigation STILL RENDERS under a Layout Element secondary-nav disable — GP is not applying the element (check the _generate_disable_secondary_navigation key) or the fixture does not match this page.' ;;
+    *) ok 'Layout Element removes #secondary-navigation on a singular page (GP side)' ;;
+esac
+
+case "${ELSECNAV}" in
+    *'gp-no-secondary-nav'*) ok 'gp-no-secondary-nav emitted for the Layout Element layer on singular (V32 — the layer that had no signal before T17)' ;;
+    *) bad 'gp-no-secondary-nav MISSING on the Layout-Element page — config-replay is not reading _generate_disable_secondary_navigation. This is the pre-T17 behaviour.' ;;
+esac
+
+case "${ARCHIVE}" in
+    *'gp-no-secondary-nav'*) ok 'gp-no-secondary-nav emitted on the ARCHIVE — the replay branch is ungated, matching GP (class-layout.php:311)' ;;
+    *) bad 'gp-no-secondary-nav MISSING on /department/sales/ — the replay branch is gated on is_singular() while GP is not, so a Layout Element disables the nav there while the rule reports it active.' ;;
+esac
+
+# Controls. Without the first, a Detector that emitted this class everywhere
+# would pass both checks above; without the second, one that had stopped reading
+# the metabox layer entirely would still look green.
+case "${BASELINE}" in
+    *'gp-no-secondary-nav'*) bad 'gp-no-secondary-nav emitted on the baseline, where nothing is disabled' ;;
+    *) ok 'control: no gp-no-secondary-nav on the baseline' ;;
+esac
+
+case "${SECNAV}" in
+    *'gp-no-secondary-nav'*) ok 'control: gp-no-secondary-nav still emitted for the per-post metabox layer (T17 added a layer, it did not replace one)' ;;
+    *) bad 'gp-no-secondary-nav MISSING on the metabox page — T17 broke the layer it was meant to extend.' ;;
 esac
 
 # ---------------------------------------------------------------------------

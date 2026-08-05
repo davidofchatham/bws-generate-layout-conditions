@@ -36,6 +36,7 @@ them. These fixtures make them falsifiable:
 | `ls-el-layout-featured-archive` | V22/T8 — featured-image disable on a **non-singular** archive, where hook-state is meaningless (V20/B2). Targets `/department/sales/`. **Inert from v1 to v3** — its condition object was the term slug where GP compares the term ID, so it never applied to any request (B6). Fixed at v4; `verify.php` §6 now proves it applies. |
 | `ls-el-layout-excluded` | V4 — replay must pass all **three** condition metas to `show_data()`. Verified discriminating: display-only `true`, all-three `false`. A two-arg replay would report this page disabled. |
 | `ls-el-page-hero` | V21 — the Page Hero **Block Element** relocation (Hero embeds title/image, removing the hooks the Detector used to read). Since ADR-0005 this is the *featured-image* ambiguity fixture plus the content-title **regression guard**: the title half must now report active here. The other five content-title writers are **deliberately unread**, not uncovered — ADR-0005 stopped consulting the hook rather than detecting the writers, so the two toggle-less relocation paths (legacy Page Hero, the deprecated Page Header module) need no fixture. They would be needed only for a future Meaning-B rule, and the survey in `architecture.md` is the spec for that. |
+| `ls-el-layout-secondary-nav` | V32/T17 — the two claims under the secondary-nav config-replay that the fake structurally cannot check: that `_generate_disable_secondary_navigation` is the key GP's Layout Element actually writes (the metabox layer's key is `_generate-disable-secondary-nav` — different words, and a wrong one here is silently inert, B6's shape), and that one **unguarded** element reaches a singular page *and* an archive. Carries both display conditions for that reason. Added v5. |
 | `ls-el-layout-title-archive` | V31 — the one claim the PHPUnit fake structurally cannot test: that GP leaves the archive **heading** standing when a Layout Element disables the content title. The fake can encode that belief; only a rendered archive can falsify it. Targets `/department/sales/`, the same archive as the featured-image fixture. Asserted by `render-surface.sh` §6, never from wp-cli. |
 | `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
@@ -43,9 +44,12 @@ them. These fixtures make them falsifiable:
 ## The four test files, and the difference
 
 `verify.php` asserts the **fixtures** landed and discriminate — so a suite
-failure means "the Detector regressed", not "the fixture seeded nothing". 32
+failure means "the Detector regressed", not "the fixture seeded nothing". 35
 assertions. Its §6 (added v4) is the one that closes B6: it bootstraps a real
-**archive** query and asserts both archive elements actually apply there.
+**archive** query and asserts all three archive elements actually apply there
+(the third added v5 — and it is the only one carrying *two* display conditions,
+so it is also what would catch `show_data()` regressing the display list from OR
+to AND).
 Existence, publish status and meta shape were never the weak link — a fixture
 can pass all three and still match no request.
 
@@ -87,7 +91,7 @@ exactly one assertion, with a message naming the cause.
 
 `render-surface.sh` is the only one that is **not** wp-cli — it asserts on real
 HTTP responses, because several invariants here are structurally invisible from
-the CLI. 33 assertions:
+the CLI. 39 assertions:
 
 | Section | Pins |
 |---|---|
@@ -96,6 +100,7 @@ the CLI. 33 assertions:
 | V24 | Both directions: CSS-only toggles (featured image, secondary nav) leave markup fully present; the PHP-removed one (content title) does not. Asserting only one direction would let "PHP-removed everything" or "removed nothing" pass half the suite. |
 | V25 | On the primary-nav page, `#site-navigation` is gone (PHP path) while `#mobile-header` survives — the documented partial-CSS regression, observed for the first time at blueprint v2. |
 | control | The baseline renders every marker the sections above assert the absence of. Without it, a change that removed these elements everywhere would pass the whole suite. |
+| V32 / T17 | The Layout Element secondary-nav layer, on **both** page types from one element. Asymmetric by necessity: on the singular page both halves are asserted (markup gone, body class emitted) because the baseline is a control for the marker rendering at all; on the archive only the body class is, since the element *is* what disables it and no nav-intact archive exists here — and the body class is the discriminating half anyway, being the Detector's own output rather than something a nav-less archive would satisfy for free. Two controls: the baseline must not carry the class, and the metabox page must still carry it (T17 added a layer, it did not replace one). |
 | V31 / ADR-0005 | The only assertions on an **archive**, and the only place the page-title-vs-item-title split is observable: with a Layout Element content-title disable on `/department/sales/`, the `<h1 class="page-title">` heading is PRESENT, the loop-card `entry-title`s are GONE, and `gp-no-content-title` is absent. The controls are what keep it honest — the loop-card absence proves the element is actually live (otherwise the body-class check passes for the wrong reason), and `gp-no-content-title` must still appear on the metabox-disabled page, which is also the render-level proof V29 is closed. |
 
 **Two caches will lie to you**, and both produce false GREENS rather than
@@ -158,7 +163,7 @@ tools/fixtures/layout-states/render-surface.sh --site <site>
 **last** among the eval-file suites and in its own process. Do not fold its
 assertions into another file.
 
-**Blueprint v4 is required** for the render harness. Earlier versions cannot
+**Blueprint v5 is required** for the render harness. Earlier versions cannot
 support it, and each shortfall turns a specific assertion into a vacuous pass —
 which is why the harness checks them before asserting anything. v1: no page
 carried a featured image, no menu was assigned to either nav location, and
@@ -166,7 +171,8 @@ carried a featured image, no menu was assigned to either nav location, and
 reads it exclusively via `get_option()` (~20 call sites, zero `get_theme_mod`),
 so the mobile header was never enabled. v2: no thumbnail on the two nav-toggle
 pages, making T10's over-suppression checks vacuous. v3: no archive
-content-title element, so §6 had nothing to observe.
+content-title element, so §6 had nothing to observe. v4: no secondary-nav Layout
+Element, so §7 had nothing to observe.
 
 Or via the orchestrator, which runs the whole family in compose order:
 `bin/seed-all.sh <site>`.
@@ -208,6 +214,18 @@ so the mobile header stayed off and V25 could never be observed.
 Nothing catches this by itself. The seed reports success, `verify.php` can
 re-read exactly what it wrote, and the assertion that depends on it passes
 *because the surface it checks renders nothing either way.*
+
+**It recurred at v5, in a third form** (B7) — and this time the fixture was
+correct while the *seeder* was not. `$upsert` reuses the post by `post_name` and
+`$write_meta` only ever wrote the keys currently in the manifest, so a key that
+was dropped or renamed stayed on the post forever. Changing a manifest key
+therefore did not change the fixture: both rows were present and GP read the old
+one. A deliberate wrong-key mutation passed **39/39**. The fix makes the write
+authoritative — keys under an owned prefix that are absent from the manifest are
+deleted first — and the same mutation now fails 3 assertions by name. Generalise
+it further: **a fixture is only real once something asserts it CHANGED an
+outcome, and only if the seeder can be shown to produce exactly what the
+manifest says.** The second clause is new; v4's lesson covered the first.
 
 **It recurred at v4, in a second form** (B6): both archive elements stored their
 display-condition `object` as the term **slug**, while GP resolves a taxonomy
