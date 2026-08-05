@@ -322,6 +322,65 @@ function_exists( 'generate_get_layout' )
 	? $ok( 'generate_get_layout() present (V26 enum source)' )
 	: $bad( 'generate_get_layout() absent — sidebar_layout() would report no-sidebar sitewide, with no error' );
 
+// ---------------------------------------------------------------------------
+// Featured-image render paths (B8).
+//
+// The plugin's per-post suppression removes FIVE callbacks by name, across two
+// mutually exclusive render paths (class-disable-elements.php, wp:60). Every one
+// of those names is upstream's, and a rename is silent in the worst way: a
+// remove_action for a callback that no longer exists returns false, warns
+// nothing, and leaves the image rendering under a toggle the user set.
+//
+// Names only. Which path is LIVE depends on module state and is a per-site fact,
+// not an upstream one — the render harness pins that (render-surface.sh §0).
+// ---------------------------------------------------------------------------
+foreach ( array(
+	'generate_featured_page_header'              => 'theme page-header path (generate_after_header)',
+	'generate_featured_page_header_inside_single' => 'theme page-header path (generate_before_content)',
+) as $callback => $what ) {
+	function_exists( $callback )
+		? $ok( sprintf( '%s() present — %s', $callback, $what ) )
+		: $bad( sprintf( '%s() ABSENT — the suppression removes it by name and would silently no-op (%s)', $callback, $what ) );
+}
+
+if ( 'activated' === get_option( 'generate_package_blog' ) ) {
+	function_exists( 'generate_blog_single_featured_image' )
+		? $ok( 'generate_blog_single_featured_image() present — the Blog module render path the suppression must also remove (B8)' )
+		: $bad( 'generate_blog_single_featured_image() ABSENT while the Blog module is activated — the suppression removes it by name and would silently no-op, exactly the B8 failure' );
+
+	function_exists( 'generate_blog_setup' )
+		? $ok( 'generate_blog_setup() present — the wp:50 callback that swaps the theme path out for the blog one' )
+		: $bad( 'generate_blog_setup() ABSENT while the Blog module is activated — path selection no longer works the way B8 assumes' );
+
+	// The three positions the suppression covers. Read from GP's own defaults
+	// rather than the site's settings: this is a canary on the SETTING VOCABULARY,
+	// so a fourth position (or a renamed one) shows up here as an unknown value
+	// even on a site that never changed the default.
+	if ( function_exists( 'generate_blog_get_defaults' ) ) {
+		$blog_defaults = generate_blog_get_defaults();
+		$known         = array( 'below-title', 'inside-content', 'above-content' );
+		$positions     = array(
+			'single_post_image_position' => $blog_defaults['single_post_image_position'] ?? null,
+			'page_post_image_position'   => $blog_defaults['page_post_image_position'] ?? null,
+		);
+
+		foreach ( $positions as $key => $value ) {
+			in_array( $value, $known, true )
+				? $ok( sprintf( 'blog default %s = %s (one of the three positions the suppression covers)', $key, $value ) )
+				: $bad( sprintf(
+					'blog default %s = %s — not one of the three known positions (%s). A new position means a fourth hook the featured-image suppression does not remove (B8).',
+					$key,
+					var_export( $value, true ),
+					implode( ', ', $known )
+				) );
+		}
+	} else {
+		$bad( 'generate_blog_get_defaults() absent while the Blog module is activated — cannot pin the image-position vocabulary' );
+	}
+} else {
+	WP_CLI::log( '  ..   Blog module not activated on this site — blog-path checks skipped (see B8: this is the state that hid it)' );
+}
+
 /* ------------------------------------------------------------------------- */
 
 WP_CLI::log( '' );
