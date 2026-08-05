@@ -54,15 +54,15 @@ Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds n
 
 ### Not detected
 
-All of these are one rule: **Featured Image Active** on singular pages. Most rules read your settings; this one is inferred from how GeneratePress has wired itself up at render time, which answers a narrower question than the rule's name suggests. (Primary Nav Active and Top Bar Active are inferred the same way, but nothing is known to fool them.) On archives, Featured Image Active reads settings and is unaffected by all of this.
+**Turning an element off globally in the Customizer is not detected.** Affects three rules: setting Primary or Secondary Navigation to *No Navigation*, or featured images to off, removes the element from every page while the matching rule still reports it active. The conditions here read the per-page layers — Layout Elements and post settings — which is where the "disable" toggles this plugin exists for actually live.
 
-**Read the second one before relying on this rule at all** — it applies to a default GeneratePress install, not to an unusual configuration.
+Everything below is one rule: **Featured Image Active** on singular pages. Most rules read your settings; this one is inferred from how GeneratePress has wired itself up at render time, which answers a narrower question than the rule's name suggests. (Primary Nav Active and Top Bar Active are inferred the same way, but nothing is known to fool them.) On archives, Featured Image Active reads settings and is unaffected by all of this.
 
+#### Featured Image Active on singular pages
+
+- **Any featured image position other than "Below title" reads as disabled everywhere — including the two defaults.** Read this one before relying on the rule at all: it describes a stock GeneratePress install, not an unusual configuration. Customizer → Layout → Blog offers three positions and this plugin watches only **Below title**, but GeneratePress ships posts as *Inside content* and pages as *Above content*. So on a site where nobody has touched that setting, Featured Image Active is false on every singular page while the image renders normally. Set both to *Below title*, or don't gate on this rule.
 - **Moving the featured image into another element reads as disabling it.** When an element renders the featured image itself, GeneratePress suppresses the native one so you don't get a duplicate — and this plugin sees that suppression, not the relocation. Affects the **Page Hero "Disable featured image"** toggle. Two consequences: blocks *within* the element are hidden regardless of post-level settings, and `gp-no-featured-image` is added to the `body` classes whether or not the image renders inside the element.
-- **Any featured image position other than "Below title" reads as disabled everywhere — including the two defaults.** Customizer → Layout → Blog offers three positions and this plugin watches only **Below title**, but GeneratePress ships posts as *Inside content* and pages as *Above content*. So on a site where nobody has touched that setting, Featured Image Active is false on every singular page while the image renders normally. Set both to *Below title*, or don't gate on this rule.
-- **The featured image rule needs GP Premium's Blog module.** The function it watches for ships in that module. With it deactivated the rule is false on every singular page.
-
-Separately, and affecting three rules rather than one: **turning an element off globally in the Customizer is not detected.** Setting Primary or Secondary Navigation to *No Navigation*, or featured images to off, removes the element from every page while the matching rule still reports it active. The conditions here read the per-page layers — Layout Elements and post settings — which is where the "disable" toggles this plugin exists for actually live.
+- **The rule needs GP Premium's Blog module.** The function it watches for ships in that module. With it deactivated the rule is false on every singular page.
 
 Two related notes: the post-level **Disable Elements → Featured Image** toggle is not reported by this rule — it suppresses a different image slot than the one being watched — and a **Page Header** with content of its own also takes over the image without the rule noticing.
 
