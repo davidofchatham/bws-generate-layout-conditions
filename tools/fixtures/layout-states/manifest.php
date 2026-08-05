@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 5,
+	'version'   => 6,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -38,7 +38,7 @@ return array(
 		'post_types'    => array(),
 		'acf_groups'    => array(),
 		'slug_prefix'   => 'ls-',
-		'options'       => array( 'generate_menu_plus_settings' ),
+		'options'       => array( 'generate_menu_plus_settings', 'generate_blog_settings' ),
 		// Shared with any blueprint that assigns menus. Claimed here because a
 		// blueprint that replaces (rather than merges) this map would silently
 		// unassign the fixture nav and make the V24 nav surfaces vacuous again.
@@ -53,6 +53,18 @@ return array(
 		'generate_package_disable_elements',
 		'generate_package_secondary_nav',
 		'generate_package_menu_plus',
+		// Blog, added v6 for B8. NOT a new fixture surface — a pin on one that
+		// was an unread variable. The featured image has two render paths and
+		// the Blog module decides which: active, it removes the theme's
+		// page-header actions unconditionally at wp:50 (blog/functions/
+		// images.php:164-165) and renders its own callback instead. Testbed had
+		// it OFF, so every featured-image assertion in this blueprint was
+		// exercising the theme path only, and the plugin's suppression could
+		// cover half the surface and still pass green (B8). Pinned ON because
+		// that is the deployed shape (measured on `hargrave`, V33) and the
+		// harder of the two — with it on, the theme path is provably dead, so
+		// any image that renders is the blog path.
+		'generate_package_blog',
 	),
 
 	// -----------------------------------------------------------------------
@@ -491,6 +503,30 @@ return array(
 			'mobile_header'      => 'enable',
 			'mobile_header_logo' => '',
 			'sticky_menu'        => 'false',
+		),
+
+		// Blog module image settings (v6, B8). Every fixture page here is a
+		// `page`, so `page_post_image*` is the live pair; the `single_*` pair is
+		// pinned too so a stray Customizer change on the testbed cannot move the
+		// surface without a reseed noticing.
+		//
+		// `inside-content` is chosen, not inherited. GP ships `above-content` for
+		// pages (blog/functions/defaults.php:35), which puts the blog image on
+		// `generate_after_header` — the SAME hook the theme's page-header path
+		// uses, and with near-identical markup. The two paths would then be
+		// indistinguishable in the response body, and the render harness could
+		// not tell which one it was asserting against. At `inside-content` the
+		// blog path renders on `generate_before_content`, inside `#content`,
+		// where the theme path never appears — so a positional check on the
+		// baseline proves the blog path is the live one (render-surface.sh §0).
+		//
+		// Both `*_post_image` flags must stay TRUE: false makes the module render
+		// nothing, which would look exactly like a working suppression.
+		'generate_blog_settings' => array(
+			'page_post_image'            => true,
+			'page_post_image_position'   => 'inside-content',
+			'single_post_image'          => true,
+			'single_post_image_position' => 'inside-content',
 		),
 	),
 

@@ -29,13 +29,15 @@
 #   tools/fixtures/layout-states/render-surface.sh --site testbed
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-states seeded at blueprint v5+ — earlier
+# pass --env-root. Preconditions: layout-states seeded at blueprint v6+ — earlier
 # fixtures cannot support these assertions (v1: no featured image, no nav menus,
 # Menu Plus mobile header never enabled; v2: no thumbnail on the two nav-toggle
 # pages, which makes T10's over-suppression checks vacuous; v3: no archive
 # content-title element, which makes section 6 vacuous; v4: no secondary-nav
-# Layout Element, which makes section 7 vacuous). The script verifies all of that
-# rather than trusting it.
+# Layout Element, which makes section 7 vacuous; v5: the GP Premium Blog module
+# unpinned, so the featured-image assertions ran against whichever of the two
+# render paths that testbed happened to have live — B8). The script verifies all
+# of that rather than trusting it.
 #
 # TWO ERAS OF ASSERTION, and the difference matters when reading a failure:
 #   * T11 assertions CHARACTERIZE the pre-T10 surface — which toggles GP leaves
@@ -164,6 +166,31 @@ case "${BASELINE}" in
     *) err 'baseline has no featured image — reseed layout-states at v2+. Without it the V24 featured-image assertions cannot fail.' ;;
 esac
 
+# Blueprint v6 precondition (B8) — WHICH featured-image path is live.
+#
+# The image has two render paths and only one runs at a time. The theme's
+# page-header path fires on `generate_after_header`, before <div id="page">, so
+# its markup lands OUTSIDE #content. The GP Premium Blog module's path fires on
+# `generate_before_content` at the pinned `inside-content` position, inside
+# content-page.php, so its markup lands INSIDE #content. Position is therefore a
+# reliable discriminator here where the class names are not — both wrappers carry
+# `page-header-image` on a page.
+#
+# This matters because the module CHOOSES the path: when active it removes both
+# theme actions unconditionally at wp:50 (blog/functions/images.php:164-165). With
+# it inactive — testbed's state through blueprint v5 — section 2 exercised only
+# the theme half, and the plugin's suppression covered only that half and passed
+# green while the toggle did nothing at all on a Blog-module-active site (B8).
+case "${BASELINE}" in
+    *'page-header-image'*) : ;;
+    *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-states at v2+.' ;;
+esac
+
+case "${BASELINE%%page-header-image*}" in
+    *'id="content"'*) ok 'baseline featured image renders on the BLOG-module path, inside #content (v6)' ;;
+    *) err 'baseline featured image renders OUTSIDE #content — that is the theme page-header path, so the Blog module is inactive or its image position is not inside-content. Section 2 would then exercise half the surface B8 is about, exactly as it did through v5. Activate generate_package_blog and reseed layout-states at v6+.' ;;
+esac
+
 case "${BASELINE}" in
     *'id="site-navigation"'*) ok 'baseline renders #site-navigation (nav menu assigned, v2)' ;;
     *) err 'no #site-navigation on baseline — no menu assigned to the primary location. Reseed layout-states at v2+.' ;;
@@ -276,9 +303,14 @@ echo "2. V24 — CSS-only vs PHP-removed"
 #
 # The wrapper class is emitted only by the render path itself
 # (featured-images.php generate_featured_page_header_area), so it discriminates.
+#
+# Since blueprint v6 this is also B8's assertion. Section 0 proves the live path
+# is the Blog module's, so a suppression that removes only the theme's two
+# page-header actions fails HERE — which is precisely what it did not do while
+# the module was off and the theme path was the only one being tested.
 case "${FEATURED}" in
-    *'page-header-image'*) bad 'featured image markup still present with toggle ON — T10 PHP suppression did not run. Check the wp:60 hook and that _generate-disable-post-image is set on this fixture.' ;;
-    *) ok 'T10: featured image PHP-removed with toggle ON (V24 regression closed)' ;;
+    *'page-header-image'*) bad 'featured image markup still present with toggle ON — the PHP suppression did not remove the live path. Section 0 says that path is the Blog module (generate_blog_single_featured_image, three possible hooks); check all three remove_action calls at wp:60, not just the theme page-header pair (B8), and that _generate-disable-post-image is set on this fixture.' ;;
+    *) ok 'T10/B8: featured image PHP-removed with toggle ON, on the blog-module path (V24 regression closed)' ;;
 esac
 
 case "${SECNAV}" in

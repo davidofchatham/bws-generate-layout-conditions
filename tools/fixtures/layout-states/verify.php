@@ -331,6 +331,47 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// 7. Featured-image render path is PINNED, not inherited (added v6, B8).
+//
+// The featured image has two render paths. The GP Premium Blog module picks:
+// active, it removes the theme's page-header actions unconditionally at wp:50
+// (blog/functions/images.php:164-165) and renders its own callback instead. The
+// module state was never pinned here, and testbed had it OFF — so every
+// featured-image assertion in this blueprint ran against the theme path alone,
+// and a suppression covering only that path passed green while doing nothing on
+// a Blog-module-active site. That is B8, and it was live on `hargrave`.
+//
+// Checked here rather than only in the render harness because the harness reads
+// the CONSEQUENCE (where the image lands in the body) and this reads the CAUSE.
+// A failure here names the setting; a failure there names the symptom.
+// ---------------------------------------------------------------------------
+WP_CLI::log( '' );
+WP_CLI::log( '7. Featured-image path pinned (B8)' );
+
+'activated' === get_option( 'generate_package_blog' )
+	? $ok( 'GP Premium Blog module ACTIVE — the blog render path is the live one' )
+	: $bad( 'GP Premium Blog module inactive — the theme page-header path is live instead, and every featured-image assertion here and in render-surface.sh tests only half the surface (B8). wp option update generate_package_blog activated' );
+
+$blog_settings = wp_parse_args(
+	get_option( 'generate_blog_settings', array() ),
+	function_exists( 'generate_blog_get_defaults' ) ? generate_blog_get_defaults() : array()
+);
+
+// Every fixture page here is a `page`, so page_* is the live pair. Both halves
+// matter: with the flag off the module renders nothing, which is indistinguishable
+// from a working suppression.
+! empty( $blog_settings['page_post_image'] )
+	? $ok( 'blog setting page_post_image ON — the image actually renders on fixture pages' )
+	: $bad( 'blog setting page_post_image is OFF — the module renders no image at all, so the suppression assertions cannot fail. Reseed layout-states at v6+.' );
+
+'inside-content' === ( $blog_settings['page_post_image_position'] ?? '' )
+	? $ok( 'blog setting page_post_image_position = inside-content — renders inside #content, where the theme path never does' )
+	: $bad( sprintf(
+		'blog setting page_post_image_position = %s, expected inside-content. The render harness tells the two paths apart by POSITION (both wrappers carry page-header-image on a page), and at above-content the blog path lands on generate_after_header — the same hook as the theme path. Reseed layout-states at v6+.',
+		var_export( $blog_settings['page_post_image_position'] ?? null, true )
+	) );
+
 WP_CLI::log( '' );
 WP_CLI::log( sprintf( 'Result: %d passed, %d failed', $pass, $fail ) );
 WP_CLI::log( '' );

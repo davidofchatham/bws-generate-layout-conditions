@@ -38,14 +38,18 @@ them. These fixtures make them falsifiable:
 | `ls-el-page-hero` | V21 — the Page Hero **Block Element** relocation (Hero embeds title/image, removing the hooks the Detector used to read). Since ADR-0005 this is the *featured-image* ambiguity fixture plus the content-title **regression guard**: the title half must now report active here. The other five content-title writers are **deliberately unread**, not uncovered — ADR-0005 stopped consulting the hook rather than detecting the writers, so the two toggle-less relocation paths (legacy Page Hero, the deprecated Page Header module) need no fixture. They would be needed only for a future Meaning-B rule, and the survey in `architecture.md` is the spec for that. |
 | `ls-el-layout-secondary-nav` | V32/T17 — the two claims under the secondary-nav config-replay that the fake structurally cannot check: that `_generate_disable_secondary_navigation` is the key GP's Layout Element actually writes (the metabox layer's key is `_generate-disable-secondary-nav` — different words, and a wrong one here is silently inert, B6's shape), and that one **unguarded** element reaches a singular page *and* an archive. Carries both display conditions for that reason. Added v5. |
 | `ls-el-layout-title-archive` | V31 — the one claim the PHPUnit fake structurally cannot test: that GP leaves the archive **heading** standing when a Layout Element disables the content title. The fake can encode that belief; only a rendered archive can falsify it. Targets `/department/sales/`, the same archive as the featured-image fixture. Asserted by `render-surface.sh` §6, never from wp-cli. |
-| `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. |
+| `ls-page-metabox-*` | V24/V25 — the CSS-neutralize regression surface. Featured Image and Secondary Nav are CSS-only (full surface); Primary Nav is partial via the `#mobile-header` wrapper. The featured-image half also pins B8 since v6: with the Blog module required ON, the image these pages render is the blog path, so a suppression that removes only the theme path fails here instead of passing. |
 | `ls-page-sidebar-*` | V26 — all four sidebar enum values, including `both-sidebars`, the only case that catches a regression to exclusive enum-matching. |
 
 ## The four test files, and the difference
 
 `verify.php` asserts the **fixtures** landed and discriminate — so a suite
-failure means "the Detector regressed", not "the fixture seeded nothing". 35
-assertions. Its §6 (added v4) is the one that closes B6: it bootstraps a real
+failure means "the Detector regressed", not "the fixture seeded nothing". 38
+assertions. Its §7 (added v6) pins the one thing this blueprint had left as an
+inherited environment variable: the GP Premium **Blog** module, which decides
+*which* of the two featured-image render paths is live. Testbed had it off, so
+every featured-image assertion here tested the theme path only and a suppression
+covering half the surface passed green (B8). Its §6 (added v4) is the one that closes B6: it bootstraps a real
 **archive** query and asserts all three archive elements actually apply there
 (the third added v5 — and it is the only one carrying *two* display conditions,
 so it is also what would catch `show_data()` regressing the display list from OR
@@ -91,11 +95,11 @@ exactly one assertion, with a message naming the cause.
 
 `render-surface.sh` is the only one that is **not** wp-cli — it asserts on real
 HTTP responses, because several invariants here are structurally invisible from
-the CLI. 39 assertions:
+the CLI. 40 assertions:
 
 | Section | Pins |
 |---|---|
-| preconditions | The response is complete HTML, and the baseline renders a featured image, both nav wrappers, and `#mobile-header`. Hard-aborts otherwise: every assertion below is presence/absence against a body, so an empty or truncated response would make the absence checks pass vacuously. |
+| preconditions | The response is complete HTML, and the baseline renders a featured image, both nav wrappers, and `#mobile-header`. Hard-aborts otherwise: every assertion below is presence/absence against a body, so an empty or truncated response would make the absence checks pass vacuously. Since v6 it also pins **which featured-image path is live**, by position: the blog path renders inside `#content`, the theme path never does. Both wrappers carry `page-header-image`, so position is the only render-level discriminator — and without it §2 silently tests whichever path the site happens to have (B8). |
 | V12 neutralize | GP's three literal `display:none` rule strings are ABSENT on pages whose toggle is on. Matching the exact upstream strings, not a generic `display:none` — theme and block CSS emit unrelated ones on every page including the control. |
 | V24 | Both directions: CSS-only toggles (featured image, secondary nav) leave markup fully present; the PHP-removed one (content title) does not. Asserting only one direction would let "PHP-removed everything" or "removed nothing" pass half the suite. |
 | V25 | On the primary-nav page, `#site-navigation` is gone (PHP path) while `#mobile-header` survives — the documented partial-CSS regression, observed for the first time at blueprint v2. |

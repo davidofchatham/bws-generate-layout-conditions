@@ -44,9 +44,25 @@ if ( ! function_exists( 'generate_disable_elements' ) ) {
  *                        body classes (:837) and color scripts (:1181), so
  *                        filtering cleans up the satellite CSS/classes too rather
  *                        than orphaning them.
- *   - Featured image  -> remove_action x2 (featured-images.php:96 page header,
- *                        :114 inside-single). GP's metabox module has no PHP path
- *                        for this at all — hence the V24 regression.
+ *   - Featured image  -> remove_action x5, matching GP's own Layout Element
+ *                        (class-layout.php:316-320) rather than half of it.
+ *                        TWO render paths carry this image and only one is live
+ *                        at a time (B8): the theme's page-header path
+ *                        (featured-images.php:96 / :114) and the GP Premium Blog
+ *                        module's `generate_blog_single_featured_image`. When the
+ *                        Blog module is active it removes BOTH theme actions
+ *                        itself, unconditionally, at wp:50 (blog/functions/
+ *                        images.php:164-165) and adds its own callback on one of
+ *                        three hooks chosen by the Customizer image position
+ *                        (:169-181). So removing only the theme pair is a no-op
+ *                        on exactly the sites where it matters — see B8. All three
+ *                        blog positions are removed because the position is a
+ *                        global setting this plugin does not read.
+ *                        GP's metabox module has no PHP path for either — hence
+ *                        the V24 regression, and its CSS rule covered both paths
+ *                        (the blog markup also emits `page-header-image` /
+ *                        `page-header-image-single`, images.php:266-270), so the
+ *                        PHP replacement has to cover both too.
  *   - #mobile-header  -> remove_action (generate-menu-plus.php:1070). V25: the
  *                        primary-nav toggle PHP-kills the SOURCE nav but leaves
  *                        the <nav id="mobile-header"> wrapper, gated only on
@@ -83,8 +99,15 @@ function bws_glc_suppress_css_only_disables() {
 	}
 
 	if ( get_post_meta( $id, '_generate-disable-post-image', true ) ) {
+		// Theme page-header path. Already gone when the Blog module is active.
 		remove_action( 'generate_after_header', 'generate_featured_page_header', 10 );
 		remove_action( 'generate_before_content', 'generate_featured_page_header_inside_single', 10 );
+
+		// Blog-module path, all three Customizer positions (B8). Added at wp:50,
+		// so this priority-60 callback is late enough to see it.
+		remove_action( 'generate_after_entry_header', 'generate_blog_single_featured_image', 10 );
+		remove_action( 'generate_before_content', 'generate_blog_single_featured_image', 10 );
+		remove_action( 'generate_after_header', 'generate_blog_single_featured_image', 10 );
 	}
 
 	if ( get_post_meta( $id, '_generate-disable-nav', true ) ) {
