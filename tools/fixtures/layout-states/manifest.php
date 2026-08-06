@@ -24,7 +24,7 @@
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 6,
+	'version'   => 7,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -305,12 +305,30 @@ return array(
 		// (class-layout.php:217) — while the BLOCK element below uses
 		// _generate_disable_title. Featured image shares one key across both.
 		//
-		// The ambiguity being pinned: the Hero EMBEDS the image/title itself,
-		// so it removes the same hooks the Detector reads. Detector reports
-		// "disabled" while both are visibly active via the Hero. v1 behavior
-		// is hook-state-wins; this fixture exists to CHARACTERIZE that, not to
-		// assert it is correct. Do not "fix" it without resolving which meaning
-		// the rule carries (architecture.md, "Two meanings").
+		// What this pins, and it has INVERTED since it was written: the Hero
+		// EMBEDS the image/title itself, so it removes the same hooks the
+		// Detector used to read, and v1 reported both as "disabled" while both
+		// were visibly active via the Hero. The fixture existed to CHARACTERIZE
+		// that. Both meanings are now resolved — title by ADR-0005, image by
+		// ADR-0006 — and neither signal reads a hook, so this is a REGRESSION
+		// GUARD for both halves: `gp-no-content-title` and `gp-no-featured-image`
+		// must both be ABSENT on ls-page-hero. render-surface.sh §8 asserts the
+		// image half on rendered output.
+		// INERT FROM v1 TO v6 (found 2026-08-06, third of the B6/B7 family).
+		// A block element resolves its hook from `_generate_hook` for every type
+		// the switch does not name, and `page-hero` is NOT in that switch
+		// (class-block.php:110-140). With the key absent the loader hits
+		// `if ( ! $hook ) return;` at :165 — BEFORE it registers either
+		// `build_hook` or the `wp:100` `remove_elements` callback. So this fixture
+		// rendered nothing and removed nothing: the V21 ambiguity it was written
+		// to characterize never once occurred on `ls-page-hero`. Nothing caught it
+		// because nothing asserted against the page — the fixture existed, was
+		// published, carried both real toggle keys, and was invisible.
+		//
+		// `generate_after_header` is what the editor itself writes: selecting the
+		// Page Hero block type sets `_generate_hook: 'generate_after_header'` in
+		// the same update (dist/block-elements.js). Seeding any other hook would
+		// be a fixture the admin UI cannot produce.
 		'ls-el-page-hero' => array(
 			'post_title'  => 'LS: Page Hero — disable title + featured image',
 			'post_name'   => 'ls-el-page-hero',
@@ -318,6 +336,8 @@ return array(
 			'meta'        => array(
 				'_generate_element_type'           => 'block',
 				'_generate_block_type'             => 'page-hero',
+				// Load-bearing, not cosmetic — see the note above.
+				'_generate_hook'                   => 'generate_after_header',
 				// Registered as bool; stored as '1' via update_post_meta (the
 				// REST bool sanitizer does not run on the CLI path). Truthy
 				// either way — see the shape note at the top of `elements`.

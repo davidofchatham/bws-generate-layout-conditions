@@ -14,9 +14,10 @@ class ConditionTest extends TestCase {
 
 	protected function setUp(): void {
 		$this->env        = new BWS_GP_Fake_Environment();
+		// Top bar only: the featured-image render hook left this list with ADR-0006
+		// — no hook is read for that signal any more. See DetectorTest.
 		$this->env->hooks = array(
 			'generate_before_header|generate_top_bar',
-			'generate_after_entry_header|generate_blog_single_featured_image',
 		);
 		BWS_GP_Layout_Detector::set_environment( $this->env );
 		BWS_GP_Layout_Detector::reset_cache();
@@ -37,7 +38,10 @@ class ConditionTest extends TestCase {
 				'primary_nav_active'    => 'Primary Nav Active',
 				'secondary_nav_active'  => 'Secondary Nav Active',
 				'top_bar_active'        => 'Top Bar Active',
-				'featured_image_active' => 'Featured Image Active',
+				// Qualified label (ADR-0006). The SLUG is frozen (V27); the label is
+				// not persisted, and the qualifier earns its place beside the sibling
+				// slot rule this signal now sits next to.
+				'featured_image_active' => 'Featured Image Active (post setting)',
 				'content_title_active'  => 'Content Title Active',
 			),
 			( new BWS_GP_Theme_Element_Condition() )->get_rules()

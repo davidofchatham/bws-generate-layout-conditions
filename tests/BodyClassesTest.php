@@ -12,9 +12,10 @@ class BodyClassesTest extends TestCase {
 
 	protected function setUp(): void {
 		$this->env        = new BWS_GP_Fake_Environment();
+		// Top bar only: the featured-image render hook left this list with ADR-0006
+		// — no hook is read for that signal any more. See DetectorTest.
 		$this->env->hooks = array(
 			'generate_before_header|generate_top_bar',
-			'generate_after_entry_header|generate_blog_single_featured_image',
 		);
 		BWS_GP_Layout_Detector::set_environment( $this->env );
 		BWS_GP_Layout_Detector::reset_cache();
@@ -59,6 +60,20 @@ class BodyClassesTest extends TestCase {
 		$classes = bws_glc_add_body_classes( array() );
 
 		$this->assertSame( array( 'gp-no-header', 'gp-no-secondary-nav' ), $classes );
+	}
+
+	/**
+	 * ADR-0006: the class keeps marking the post-level disable and nothing else.
+	 * Its counterpart is test_no_classes_when_nothing_disabled above — with the
+	 * featured-image render hook gone from setUp, a Detector reverted to hook-state
+	 * emits this class on every singular page and fails there.
+	 */
+	public function test_featured_image_class_follows_the_post_setting_adr0006(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->meta[10]   = array( '_generate-disable-post-image' => 'true' );
+
+		$this->assertSame( array( 'gp-no-featured-image' ), bws_glc_add_body_classes( array() ) );
 	}
 
 	public function test_no_sidebar_class_ever_v8(): void {
