@@ -20,11 +20,45 @@
  * module behind its own option and ships them OFF; with Elements off,
  * `GeneratePress_Conditions` never loads and config-replay (V2) silently
  * no-ops. seed.php asserts this rather than seeding into a dead environment.
+ *
+ * SINCE v8 it also requires GB PRO, for the `gblocks_condition` posts and the
+ * blocks that reference them. That is a second consumer with its own storage
+ * (`_gb_conditions`) and its own silent-inertness modes — see `conditions`
+ * below.
  */
+
+/*
+ * The conditioned marker blocks (v8), shared verbatim by every fixture in the
+ * combination table so a difference in the rendered response is attributable to
+ * the RULE and nothing else.
+ *
+ * Three blocks, and the first is not decoration. `ls-marker-control` carries no
+ * condition, so its presence proves the content of this fixture reached the
+ * response at all; without it every absence assertion below could pass because
+ * the page rendered nothing — B9's failure mode, one layer out. The render
+ * harness hard-aborts on it rather than recording a FAIL.
+ *
+ * `gbBlockCondition` is the GB Pro block attribute: the ID of a published
+ * `gblocks_condition` post, as a STRING (registered `type => 'string'`,
+ * `dist/block-conditions.js` writes a string). GB Pro reads it on `render_block`
+ * for EVERY block type (`includes/extend/block-conditions.php:26`), so a core
+ * paragraph exercises exactly the same evaluation path a GenerateBlocks block
+ * would — with none of the markup-validity surface. The {{condition:slug}}
+ * placeholder is resolved to the real post ID by seed.php, for the same reason
+ * page IDs are: hardcoding one would make the manifest environment-specific.
+ *
+ * NO `gbBlockConditionInvert`: the invert flag flips the result AFTER the rule
+ * is evaluated, so an inverted block would still be green with the rule
+ * answering backwards. Both directions are covered by choosing fixtures where
+ * the rule genuinely differs, never by inverting the reading.
+ */
+$ls_marker_blocks = '<!-- wp:paragraph --><p>ls-marker-control</p><!-- /wp:paragraph -->'
+	. '<!-- wp:paragraph {"gbBlockCondition":"{{condition:ls-cond-image-active}}"} --><p>ls-marker-image-active</p><!-- /wp:paragraph -->'
+	. '<!-- wp:paragraph {"gbBlockCondition":"{{condition:ls-cond-slot-active}}"} --><p>ls-marker-slot-active</p><!-- /wp:paragraph -->';
 
 return array(
 	'blueprint' => 'layout-states',
-	'version'   => 7,
+	'version'   => 8,
 
 	'composes_on' => array(
 		'blueprint'   => 'core-structures',
@@ -37,6 +71,9 @@ return array(
 	'defines' => array(
 		'post_types'    => array(),
 		'acf_groups'    => array(),
+		// Covers the `gblocks_condition` posts added in v8 as well — same
+		// prefix, same namespace claim, and GB Pro's CPT is no more ours than
+		// `gp_elements` is.
 		'slug_prefix'   => 'ls-',
 		'options'       => array( 'generate_menu_plus_settings', 'generate_blog_settings' ),
 		// Shared with any blueprint that assigns menus. Claimed here because a
@@ -65,6 +102,102 @@ return array(
 		// harder of the two — with it on, the theme path is provably dead, so
 		// any image that renders is the blog path.
 		'generate_package_blog',
+	),
+
+	// Non-GP consumers the v8 fixtures need. GB Pro registers the
+	// `gblocks_condition` post type and the `render_block` filter that reads
+	// `gbBlockCondition`; without it every conditioned marker block renders
+	// unconditionally, which is indistinguishable from "the rule said yes" and
+	// would turn the whole combination table green while proving nothing.
+	// seed.php hard-errors, same as for the GP modules above.
+	'requires_post_types' => array(
+		'gblocks_condition' => 'GenerateBlocks Pro — block conditions (v8 marker blocks)',
+	),
+
+	// -----------------------------------------------------------------------
+	// GB Pro conditions (`gblocks_condition`), added v8.
+	//
+	// This is the FIRST fixture surface in the blueprint that belongs to GB Pro
+	// rather than GP Premium, and it is what makes the authoring workflow
+	// observable: a block carries `gbBlockCondition => <this post's ID>`, GB Pro
+	// looks the post up on `render_block`, reads `_gb_conditions`, and calls this
+	// plugin's `evaluate()` through its registry. Every link in that chain is
+	// silent when broken — an unpublished condition post, an unregistered type
+	// slug, or a rule slug the type does not answer all make the block render
+	// unconditionally, which looks exactly like "the rule said yes".
+	//
+	// post_status MUST be 'publish': `check_block_conditions()` returns the block
+	// content untouched for any other status (block-conditions.php:77), so a
+	// draft condition is not a failed condition — it is NO condition.
+	//
+	// `_gb_conditions` is stored in the shape GB Pro's own sanitizer produces
+	// (`GenerateBlocks_Pro_Conditions::sanitize_conditions`), which runs on the
+	// `update_post_meta` path too because the meta is registered with it
+	// (class-conditions-post-type.php:242). So the fixture is byte-identical to
+	// what the block editor would write over REST, and verify.php re-runs the
+	// sanitizer over the stored value to prove it.
+	//
+	// One condition per rule, one rule per group, group logic AND, top-level OR:
+	// the shape the UI produces for a single rule. Nothing here tests GB Pro's
+	// group algebra — that is GB Pro's own surface, and folding both rules into
+	// one condition post would make a single failure ambiguous between them.
+	//
+	// KEY TRAP, and it is B6's shape on a new consumer: `type` must be the
+	// registry slug this plugin registers (`gp_theme_element`, V27 — persisted
+	// data, frozen) and `rule` must be a key of that type's `get_rules()`. Both
+	// are plain strings that GB Pro looks up and silently no-ops on when unknown:
+	// `evaluate_single_condition()` returns false for an unregistered type, and
+	// `BWS_GP_Theme_Element_Condition::evaluate()` returns `$match = false` for an
+	// unknown rule — so a typo does not fail loudly, it inverts the fixture into
+	// "always hidden". verify.php §8 checks both against the live registry.
+	// -----------------------------------------------------------------------
+	'conditions' => array(
+
+		// The per-post Disable Elements toggle (ADR-0006). The author-facing
+		// question: "has the editor switched the featured image off for this post?"
+		'ls-cond-image-active' => array(
+			'post_title' => 'LS: Featured Image Active (post setting)',
+			'post_name'  => 'ls-cond-image-active',
+			'gb_conditions' => array(
+				'logic'  => 'OR',
+				'groups' => array(
+					array(
+						'logic'      => 'AND',
+						'conditions' => array(
+							array(
+								'type'     => 'gp_theme_element',
+								'rule'     => 'featured_image_active',
+								'operator' => 'is',
+								'value'    => '',
+							),
+						),
+					),
+				),
+			),
+		),
+
+		// The theme's own slot (V34, issue #4). Different subject, and the whole
+		// point of the combination table is that these two answers come apart.
+		'ls-cond-slot-active' => array(
+			'post_title' => 'LS: Featured Image Slot Active (theme)',
+			'post_name'  => 'ls-cond-slot-active',
+			'gb_conditions' => array(
+				'logic'  => 'OR',
+				'groups' => array(
+					array(
+						'logic'      => 'AND',
+						'conditions' => array(
+							array(
+								'type'     => 'gp_theme_element',
+								'rule'     => 'featured_image_slot_active',
+								'operator' => 'is',
+								'value'    => '',
+							),
+						),
+					),
+				),
+			),
+		),
 	),
 
 	// -----------------------------------------------------------------------
@@ -172,6 +305,90 @@ return array(
 			'display_conditions' => array(
 				array( 'rule' => 'taxonomy:department', 'object' => '{{term:department:sales}}' ),
 			),
+		),
+
+		// --- Layout Element: featured-image KILL SWITCH on a singular page ---
+		// Added v8 (issue #5), and it is the one scenario nothing covered.
+		//
+		// The slot rule (V34) exists to answer "is GeneratePress itself drawing a
+		// featured image here?", and the interesting answer is NO on a singular
+		// page where the post setting says the image is ACTIVE. Every other route
+		// to that state pairs the removal with something that draws an image in
+		// its place: a Page Hero (ls-page-hero) or a Content Template. This is the
+		// bare case — the callbacks are gone and NOTHING replaces them, which is
+		// what a Layout Element's "Disable featured image" toggle does on a real
+		// site and what no deployed instance in the survey exhibited.
+		//
+		// Mechanically identical to the Page Hero's removal and to this plugin's
+		// own suppression: GP's layout element removes the SAME five callbacks
+		// (class-layout.php:316-320) — the three Blog-module positions plus the
+		// theme page-header pair. So the fixture is a real test of the slot rule's
+		// both-paths read (V34 part 2), not just of one branch.
+		//
+		// SEPARATE from ls-el-layout-featured-archive, deliberately. That one is a
+		// regression guard on an ARCHIVE, where the post-setting rule short-circuits
+		// before reading anything (ADR-0006) and the slot rule is a constant false.
+		// Here both rules are live and must DISAGREE — post setting active, slot
+		// not — which is the combination the whole ticket is about, and it needs a
+		// singular target and a page of its own.
+		//
+		// The target page carries a thumbnail (see `ls-page-featured-kill`): without
+		// one, "no page-header-image in the response" would be true whether or not
+		// the element applied, and the GP-side half of this fixture would prove
+		// nothing.
+		'ls-el-layout-featured-kill' => array(
+			'post_title'  => 'LS: Layout — disable featured image (singular kill switch)',
+			'post_name'   => 'ls-el-layout-featured-kill',
+			'post_status' => 'publish',
+			'meta'        => array(
+				'_generate_element_type'           => 'layout',
+				// The LAYOUT element key. Not _generate-disable-post-image (the
+				// per-post metabox key) — pointing this at that one leaves GP's
+				// callbacks attached and the fixture silently stops disabling
+				// anything, which is the mutation verify.php §8 and
+				// render-surface.sh §9 are checked against.
+				'_generate_disable_featured_image' => 'true',
+			),
+			'display_conditions' => array(
+				array( 'rule' => 'post:page', 'object' => '{{ls-page-featured-kill}}' ),
+			),
+		),
+
+		// --- Block Element: the conditioned markers, on the ARCHIVE (v8) -----
+		// The archive is a row of the combination table like any other, and it is
+		// the one page type with no post_content to carry the marker blocks. A
+		// hook Block Element is how an author puts blocks on an archive, so this
+		// is the real workflow rather than a test-only construct.
+		//
+		// `generate_before_main_content` fires on archive.php:22 (and page.php,
+		// index.php, 404.php), and it is in GP's own hook dropdown
+		// (class-elements-helper.php, 'content' group) — so this is a fixture the
+		// admin UI can produce, which is the standing bar here.
+		//
+		// SCOPED TO THE ARCHIVE, not site-wide. Every singular row carries the
+		// same three markers in its own post_content, and a site-wide element
+		// would render a second copy of each on those pages — harmless to a
+		// presence check, fatal to reading a failure, since "ls-marker-slot-active
+		// is present" would no longer say WHICH surface produced it.
+		//
+		// `_generate_block_type => 'hook'` with `_generate_hook` set: the pair
+		// GP's editor writes for a plain hook element (class-metabox.php:334).
+		// Both keys matter — `hook` is not one of the types the loader's switch
+		// resolves a hook for, so with `_generate_hook` absent it returns before
+		// registering anything (B9).
+		'ls-el-block-archive-markers' => array(
+			'post_title'  => 'LS: Block — conditioned markers (archive)',
+			'post_name'   => 'ls-el-block-archive-markers',
+			'post_status' => 'publish',
+			'meta'        => array(
+				'_generate_element_type' => 'block',
+				'_generate_block_type'   => 'hook',
+				'_generate_hook'         => 'generate_before_main_content',
+			),
+			'display_conditions' => array(
+				array( 'rule' => 'taxonomy:department', 'object' => '{{term:department:sales}}' ),
+			),
+			'post_content' => $ls_marker_blocks,
 		),
 
 		// --- Layout Element: content title on a NON-SINGULAR archive (V31) --
@@ -376,6 +593,11 @@ return array(
 			// ls-page-metabox-featured. Without it both pages render no image and
 			// the comparison is vacuous. See `featured_image` below.
 			'featured_image' => true,
+			// v8: the only row of the combination table where BOTH rules answer
+			// true, so it is the control proving each conditioned marker renders
+			// at all. Every absence assertion in render-surface.sh §9 is read
+			// against this page's presences.
+			'post_content'   => $ls_marker_blocks,
 		),
 
 		// Carries the header+footer Block Elements (V2). Nothing is actually
@@ -408,6 +630,38 @@ return array(
 		'ls-page-hero' => array(
 			'post_title' => 'LS: Page Hero (title + featured image ambiguity)',
 			'post_name'  => 'ls-page-hero',
+			// Added v8, and load-bearing for the same reason it is on the metabox
+			// page. This is the "relocation" row of the combination table — post
+			// setting active, theme slot not — and the GP-side half of that claim
+			// is that no page-header-image renders here. With no thumbnail that is
+			// true on a page where the Hero never ran either, so the assertion
+			// would pass for the wrong reason.
+			'featured_image' => true,
+			'post_content'   => $ls_marker_blocks,
+		),
+
+		// --- The kill switch (v8, issue #5) ---------------------------------
+		// A singular page where a Layout Element switches the featured image off
+		// and NOTHING draws one in its place — no Page Hero, no Content Template,
+		// no second element. The one combination no fixture and no deployed site
+		// exhibited, and the case the slot rule exists to serve.
+		//
+		// The thumbnail is what makes it falsifiable: GP would render a
+		// page-header-image here if the element were not applying, so the absence
+		// of that wrapper in the response is a real observation rather than the
+		// default state of a page with no image. Its presence in the post's own
+		// meta still leaks into the response through the SEO plugin's og:image, so
+		// the render harness can prove the thumbnail is seeded without being able
+		// to see the image render — see render-surface.sh §9.
+		//
+		// Nothing else is set on this page: no disable_meta, so the per-post rule
+		// must still report the image ACTIVE here. That divergence — post setting
+		// active, slot not — is the whole content of the row.
+		'ls-page-featured-kill' => array(
+			'post_title'     => 'LS: Layout Element kill switch (featured image, nothing replaces it)',
+			'post_name'      => 'ls-page-featured-kill',
+			'featured_image' => true,
+			'post_content'   => $ls_marker_blocks,
 		),
 
 		// --- Per-post metabox layer (V24/V25 CSS-neutralize surface) -------
@@ -425,6 +679,12 @@ return array(
 			// passes without testing anything. This is the primary CSS-only
 			// regression surface, so a vacuous pass here is the worst case.
 			'featured_image' => true,
+			// v8: the "post setting disabled" row. Both markers must be ABSENT
+			// here — the image one because the toggle is set, the slot one
+			// because this plugin's own wp:60 suppression removed the five
+			// callbacks the slot rule reads. The second is the render-level proof
+			// that "post setting disabled, slot active" is unreachable (V34).
+			'post_content'   => $ls_marker_blocks,
 		),
 
 		// V24 — CSS-only. Full regression surface.
@@ -583,7 +843,7 @@ return array(
 	// -----------------------------------------------------------------------
 	'foreign_dependencies' => array(
 		'core-structures' => array(
-			'department:sales' => 'Non-singular archive for V22 featured-image config-replay and the V31 page-title render check (/department/sales/). Needs >=1 published post assigned, else the archive 404s and BOTH tests vacuously pass — the V31 assertions are absence checks against the response body, so a 404 satisfies them for the wrong reason.',
+			'department:sales' => 'Non-singular archive for V22 featured-image config-replay, the V31 page-title render check, and (v8) the archive row of the featured-image combination table (/department/sales/). Needs >=1 published post assigned, else the archive 404s and ALL THREE tests vacuously pass — the V31 and v8 assertions are absence checks against the response body, so a 404 satisfies them for the wrong reason. The v8 row is the one with a live control: ls-el-block-archive-markers renders an unconditioned marker there, so a 404 hard-aborts the render harness instead of passing.',
 		),
 	),
 );

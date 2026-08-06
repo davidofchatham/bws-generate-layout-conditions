@@ -75,7 +75,34 @@ if ( $inactive ) {
 if ( ! post_type_exists( 'gp_elements' ) ) {
 	WP_CLI::error( 'gp_elements post type missing — GP Premium Elements module did not load.' );
 }
-$log( 'preconditions OK (core-structures v' . $core_manifest['version'] . ', GP Premium modules active)' );
+
+// GB Pro, added v8. The marker blocks are only conditioned while GB Pro is
+// there to read `gbBlockCondition` on `render_block`; without it they render
+// unconditionally and every row of the combination table passes its presence
+// half while proving nothing about any rule.
+foreach ( $manifest['requires_post_types'] as $post_type => $why ) {
+	if ( ! post_type_exists( $post_type ) ) {
+		WP_CLI::error( sprintf( 'post type %s missing — %s. Activate it before seeding.', $post_type, $why ) );
+	}
+}
+
+// The feature flag, not just the plugin. GB Pro gates the whole `render_block`
+// filter on this (includes/extend/block-conditions.php:22), and with it off the
+// conditions are stored, readable and never consulted — the exact self-verifying
+// inertness this blueprint keeps rediscovering (B6/B7/B9).
+//
+// A MISSING function is an error too, not a skip. Guarding this check on
+// function_exists() would make it evaporate the moment GB Pro renames or moves
+// it — a checker that silently stops checking is the same failure shape as the
+// fixtures it is here to catch, one level up.
+if ( ! function_exists( 'generateblocks_pro_block_conditions_enabled' ) ) {
+	WP_CLI::error( 'generateblocks_pro_block_conditions_enabled() is absent — GB Pro is not loaded, or has moved the flag. Either way nothing here can confirm the render_block filter is live, and every conditioned marker block may render unconditionally.' );
+}
+if ( ! generateblocks_pro_block_conditions_enabled() ) {
+	WP_CLI::error( 'GB Pro block conditions are DISABLED (generateblocks_get_option enable_block_conditions === false). Every conditioned marker block would render unconditionally.' );
+}
+
+$log( 'preconditions OK (core-structures v' . $core_manifest['version'] . ', GP Premium modules active, GB Pro conditions available)' );
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -226,14 +253,79 @@ $ensure_attachment = function () use ( $log ) {
 };
 
 // ---------------------------------------------------------------------------
-// 1. Pages first — elements reference them by ID in display conditions.
+// 0b. GB Pro conditions (v8) — BEFORE pages and elements.
+//
+// Ordering is a hard dependency, not a preference: the marker blocks embed a
+// condition post ID in `gbBlockCondition`, so nothing carrying post_content can
+// be written until these IDs exist.
+// ---------------------------------------------------------------------------
+$condition_ids = array();
+
+foreach ( $manifest['conditions'] as $slug => $condition ) {
+	$id = $upsert( 'gblocks_condition', $condition['post_name'], array(
+		'post_title' => $condition['post_title'],
+	) );
+
+	$condition_ids[ $slug ] = $id;
+
+	// update_post_meta directly, NOT $write_meta, and both halves of that are
+	// deliberate. `_gb_conditions` is REGISTERED meta carrying GB Pro's own
+	// sanitize_callback (class-conditions-post-type.php:242), which
+	// update_post_meta runs — so the stored value is byte-identical to what a
+	// REST write from the block editor produces, which is the standing bar for
+	// fixtures here. And $write_meta's delete-on-empty convention encodes GP's
+	// metabox behaviour, which has nothing to say about this key.
+	update_post_meta( $id, '_gb_conditions', $condition['gb_conditions'] );
+
+	$log( sprintf(
+		'condition %-32s #%d (%s: %s)',
+		$slug,
+		$id,
+		$condition['gb_conditions']['groups'][0]['conditions'][0]['type'],
+		$condition['gb_conditions']['groups'][0]['conditions'][0]['rule']
+	) );
+}
+
+/**
+ * Resolve {{condition:fixture-slug}} placeholders in block content to a real ID.
+ *
+ * Same reason display-condition objects carry placeholders: a condition post ID
+ * is not knowable until the post exists, and hardcoding one would make the
+ * manifest environment-specific.
+ *
+ * Hard-errors on an unknown slug rather than leaving the literal in place. An
+ * unresolved placeholder is the worst possible failure here — `absint('{{...}}')`
+ * is 0, GB Pro treats 0 as "no condition" and returns the block content
+ * untouched (block-conditions.php:70), so the marker renders unconditionally and
+ * every presence assertion goes green while the rule is never consulted.
+ */
+$resolve_content = function ( $content ) use ( &$condition_ids ) {
+	if ( ! is_string( $content ) || '' === $content ) {
+		return $content;
+	}
+
+	return preg_replace_callback(
+		'/\{\{condition:([a-z0-9-]+)\}\}/',
+		function ( $m ) use ( $condition_ids ) {
+			if ( ! isset( $condition_ids[ $m[1] ] ) ) {
+				WP_CLI::error( sprintf( 'block content references unknown condition fixture "%s"', $m[1] ) );
+			}
+
+			return (string) $condition_ids[ $m[1] ];
+		},
+		$content
+	);
+};
+
+// ---------------------------------------------------------------------------
+// 1. Pages next — elements reference them by ID in display conditions.
 // ---------------------------------------------------------------------------
 $page_ids = array();
 
 foreach ( $manifest['pages'] as $slug => $page ) {
 	$id = $upsert( 'page', $page['post_name'], array(
 		'post_title'   => $page['post_title'],
-		'post_content' => $page['post_content'] ?? '',
+		'post_content' => $resolve_content( $page['post_content'] ?? '' ),
 	) );
 
 	$page_ids[ $slug ] = $id;
@@ -319,7 +411,7 @@ $element_ids = array();
 foreach ( $manifest['elements'] as $slug => $element ) {
 	$id = $upsert( 'gp_elements', $element['post_name'], array(
 		'post_title'   => $element['post_title'],
-		'post_content' => $element['post_content'] ?? '',
+		'post_content' => $resolve_content( $element['post_content'] ?? '' ),
 		'post_status'  => $element['post_status'],
 	) );
 
@@ -462,4 +554,11 @@ if ( ! $sales ) {
 	$log( sprintf( 'foreign dep OK — department:sales carries %d post(s)', $sales->count ) );
 }
 
-$log( sprintf( 'DONE — blueprint %s v%d (%d pages, %d elements)', $manifest['blueprint'], $manifest['version'], count( $page_ids ), count( $element_ids ) ) );
+$log( sprintf(
+	'DONE — blueprint %s v%d (%d pages, %d elements, %d conditions)',
+	$manifest['blueprint'],
+	$manifest['version'],
+	count( $page_ids ),
+	count( $element_ids ),
+	count( $condition_ids )
+) );
