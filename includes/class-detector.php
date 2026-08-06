@@ -132,8 +132,9 @@ class BWS_GP_Layout_Detector {
 	 *     @type bool   $featured_image Featured image disabled.
 	 *     @type bool   $content_title  Content title disabled.
 	 *     @type string $sidebar        'left-sidebar'|'right-sidebar'|'no-sidebar'|'both-sidebars'
-	 *     @type bool   $featured_image_slot_active GP's own featured-image slot live.
-	 *                                             POSITIVE polarity — see below.
+	 *     @type bool   $featured_image_slot_active  GP's own featured-image slot is
+	 *                                  live. POSITIVE polarity, unlike every key
+	 *                                  above it — see is_featured_image_slot_active().
 	 * }
 	 */
 	public static function states() {

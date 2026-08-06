@@ -171,10 +171,12 @@ class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 		$match = false;
 
 		if ( isset( $rules[ $rule ] ) ) {
-			$state = BWS_GP_Layout_Detector::states()[ $rules[ $rule ]['state'] ];
+			$entry  = $rules[ $rule ];
+			$states = BWS_GP_Layout_Detector::states();
+			$state  = $states[ $entry['state'] ];
 
 			// Disable-polarity states invert to "Active" (V7) — never render state.
-			$match = $rules[ $rule ]['invert'] ? ! $state : (bool) $state;
+			$match = $entry['invert'] ? ! $state : (bool) $state;
 		}
 
 		return $this->apply_operator( $operator, $match );
