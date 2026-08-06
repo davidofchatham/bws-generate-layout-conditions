@@ -79,11 +79,46 @@ abstract class BWS_GP_No_Value_Condition extends GenerateBlocks_Pro_Condition_Ab
 /**
  * Theme Element Status — the 7 component disable states (V11, V27).
  *
- * Each rule true when the component is NOT disabled by config ("Active", V7).
- * Rules, labels, and state keys all come from the Detector's signal registry (T7)
- * — this class holds no signal enumeration of its own.
+ * Each signal rule is true when the component is NOT disabled by config
+ * ("Active", V7). Their rules, labels and state keys all come from the Detector's
+ * signal registry (T7) — this class holds no signal enumeration of its own.
  */
 class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
+
+	/**
+	 * The condition's rule table: rule slug => { state, label, invert }.
+	 *
+	 * Both consumers read it — `get_rules()` takes the labels, `evaluate()` takes
+	 * the state key and the polarity — so a rule cannot appear in the dropdown
+	 * without an evaluation path, or vice versa.
+	 *
+	 * 'invert' is the load-bearing column, and the reason this is a table rather
+	 * than a loop over the signal registry. The Detector's state map is
+	 * DISABLE-polarity for the seven signals, so those rows invert to read as
+	 * "Active"; a row whose state is already stored the way its rule reads it must
+	 * not be. The sidebar condition already carries rules that are not signals;
+	 * this is the element condition's equivalent seam.
+	 *
+	 * 'state' indexes `BWS_GP_Layout_Detector::states()`. For signal rows that is
+	 * the registry key (`featured_image`), which is deliberately NOT the rule slug
+	 * (`featured_image_active`) — V9 vocabulary divergence.
+	 *
+	 * @return array rule slug => { state: states() key, label: translated label,
+	 *                              invert: bool — true when the state is disable-polarity }
+	 */
+	private static function rule_table() {
+		$rules = array();
+
+		foreach ( BWS_GP_Layout_Detector::signals() as $key => $signal ) {
+			$rules[ $signal['rule'] ] = array(
+				'state'  => $key,
+				'label'  => $signal['label'],
+				'invert' => true,
+			);
+		}
+
+		return $rules;
+	}
 
 	/**
 	 * Evaluate the condition.
@@ -95,30 +130,29 @@ class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 	 * @return bool
 	 */
 	public function evaluate( $rule, $operator, $value, $context = array() ) {
-		$states = BWS_GP_Layout_Detector::states();
-		$match  = false;
+		$rules = self::rule_table();
+		$match = false;
 
-		foreach ( BWS_GP_Layout_Detector::signals() as $key => $signal ) {
-			if ( $signal['rule'] === $rule ) {
-				// "Active" = not disabled by config (V7) — never render state.
-				$match = ! $states[ $key ];
-				break;
-			}
+		if ( isset( $rules[ $rule ] ) ) {
+			$state = BWS_GP_Layout_Detector::states()[ $rules[ $rule ]['state'] ];
+
+			// Disable-polarity states invert to "Active" (V7) — never render state.
+			$match = $rules[ $rule ]['invert'] ? ! $state : (bool) $state;
 		}
 
 		return $this->apply_operator( $operator, $match );
 	}
 
 	/**
-	 * Rule keys → display labels (V11: 7 component rules, all "Active" suffix).
+	 * Rule keys → display labels (V11: every label built on an "Active" stem).
 	 *
 	 * @return array
 	 */
 	public function get_rules() {
 		$rules = array();
 
-		foreach ( BWS_GP_Layout_Detector::signals() as $signal ) {
-			$rules[ $signal['rule'] ] = $signal['label'];
+		foreach ( self::rule_table() as $rule => $entry ) {
+			$rules[ $rule ] = $entry['label'];
 		}
 
 		return $rules;
