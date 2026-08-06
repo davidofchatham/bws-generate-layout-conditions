@@ -21,12 +21,20 @@ class DetectorTest extends TestCase {
 		BWS_GP_Layout_Detector::reset_cache();
 	}
 
-	/** A request where nothing is disabled: GP's render hooks are attached, no meta, no elements. */
+	/**
+	 * A request where nothing is disabled: GP's render hooks are attached, no meta, no elements.
+	 *
+	 * Only the top-bar hook is here, because it is the only hook-state signal left
+	 * that reads a RENDER callback's presence. The featured-image hook was in this
+	 * list until ADR-0006 and removing it is load-bearing rather than tidying: with
+	 * it present, a Detector reverted to hook-state still reports the image active
+	 * on a bare request and test_nothing_disabled_on_bare_singular_request stays
+	 * green. Without it, the revert fails there too.
+	 */
 	private static function all_active_env(): BWS_GP_Fake_Environment {
 		$env        = new BWS_GP_Fake_Environment();
 		$env->hooks = array(
 			'generate_before_header|generate_top_bar',
-			'generate_after_entry_header|generate_blog_single_featured_image',
 		);
 		return $env;
 	}
@@ -125,10 +133,11 @@ class DetectorTest extends TestCase {
 	public function test_hook_state_signals(): void {
 		$this->env->singular = true;
 		$this->env->hooks    = array(
-			// top bar + featured image render hooks REMOVED (disabled)…
+			// top bar render hook REMOVED (disabled)…
 			// …and the disable filter PRESENT for nav.
 			// Content title is NOT here: it left hook-state for config-replay
-			// (ADR-0005) — its hook-state case is asserted false below.
+			// (ADR-0005) — its hook-state case is asserted false below. Featured
+			// image left it too (ADR-0006), same treatment.
 			'generate_navigation_location|__return_false',
 		);
 
@@ -136,7 +145,6 @@ class DetectorTest extends TestCase {
 
 		$this->assertTrue( $states['primary_nav'] );
 		$this->assertTrue( $states['top_bar'] );
-		$this->assertTrue( $states['featured_image'] );
 	}
 
 	// --- V31/ADR-0005: content title = the PAGE-TITLE role, Meaning A ------
@@ -206,24 +214,100 @@ class DetectorTest extends TestCase {
 		);
 	}
 
-	// --- V20/V22/B2: featured image off-singular = replay, never hook-state -
+	// --- ADR-0006: featured image = per-post intent, one meaning everywhere --
+	//
+	// The same shape content title arrived at (ADR-0005): one genuine-disable
+	// source read on singular, a constant off it. Two of the cases below asserted
+	// the OPPOSITE before ADR-0006 and are inverted in place rather than deleted,
+	// so a revert to either the hook read or the Layout Element replay fails here
+	// by name. The Layout Element key is not read on ANY page type — on real sites
+	// it is how a relocation is performed, not how an image is removed.
 
-	public function test_featured_image_archive_uses_replay_not_hook_v22(): void {
-		$this->env->singular = false;
-		$this->env->hooks    = array(); // hook absent — meaningless on archives (B2)
+	public function test_featured_image_metabox_disables_on_singular_adr0006(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->meta[10]   = array( '_generate-disable-post-image' => 'true' );
 
-		$this->assertFalse(
+		$this->assertTrue(
 			BWS_GP_Layout_Detector::states()['featured_image'],
-			'hook absence on archives is not a disable signal (V20/B2)'
+			'the per-post Disable Elements toggle is the rule\'s only source (ADR-0006)'
 		);
 	}
 
-	public function test_featured_image_archive_detects_layout_element_v22(): void {
+	/**
+	 * Control for the case above, not an independent guard. Its job is to rule out
+	 * an always-disabled reading, which would make the metabox case pass for the
+	 * wrong reason — and it is also where a revert to hook-state lands, since
+	 * all_active_env() no longer attaches the featured-image render hook.
+	 */
+	public function test_featured_image_active_on_bare_singular_adr0006(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image'],
+			'nothing configured means the image is active, whatever the hook stack looks like (ADR-0006)'
+		);
+	}
+
+	public function test_featured_image_ignores_hook_state_adr0006(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		// A Page Hero relocated the image, so GP's render callback is gone from
+		// every position it could occupy. Nothing is configured as disabled, so
+		// the rule must report the image active. This assertion read TRUE before
+		// ADR-0006 — it is V21's relocation ambiguity, inverted.
+		$this->env->hooks = array();
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image'],
+			'relocation is not a disable — no hook is read for this signal on any page type (ADR-0006)'
+		);
+	}
+
+	public function test_featured_image_ignores_layout_element_on_singular_adr0006(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->layout_elements['_generate_disable_featured_image'] = array( 42 );
+		$this->env->meta[42] = array( '_generate_disable_featured_image' => 'true' );
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image'],
+			'the Layout Element key carries relocation intent and is not read (ADR-0006)'
+		);
+	}
+
+	/**
+	 * The 0.2.0 non-singular replay (V22/T8), inverted. It asserted TRUE here: the
+	 * Layout Element disable was replayed on archives because GP applies its own
+	 * removal there unguarded. ADR-0006 removes that branch — the key is the same
+	 * contaminated one, evaluated where it is least observable.
+	 */
+	public function test_featured_image_active_off_singular_despite_layout_element_adr0006(): void {
 		$this->env->singular = false;
 		$this->env->layout_elements['_generate_disable_featured_image'] = array( 42 );
 		$this->env->meta[42] = array( '_generate_disable_featured_image' => 'true' );
 
-		$this->assertTrue( BWS_GP_Layout_Detector::states()['featured_image'] );
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image'],
+			'off singular the rule is a constant — the Layout Element layer is not read there either (ADR-0006)'
+		);
+	}
+
+	/**
+	 * Off-singular constancy proper: the metabox layer cannot apply there, so the
+	 * short-circuit is not an archive special case. Pairs with the ADR-0002 case
+	 * above, which covers the same shape for header and secondary nav.
+	 */
+	public function test_featured_image_active_off_singular_with_metabox_meta_adr0006(): void {
+		$this->env->singular   = false;
+		$this->env->queried_id = 10;
+		$this->env->meta[10]   = array( '_generate-disable-post-image' => 'true' );
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image'],
+			'off singular the metabox layer contributes nothing, so the rule is a constant (ADR-0006)'
+		);
 	}
 
 	// --- V32/T17: secondary nav replays the Layout Element layer too --------

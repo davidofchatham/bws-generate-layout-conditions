@@ -9,9 +9,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Hybrid detection. Config-replay for header, footer and content title (whose hook
  * signals are poisoned by elements that take over the hook for their own reasons —
  * ADR-0001, ADR-0005) and for secondary nav (which has no readable hook signal at
- * all — V32). Hook-state for primary nav, top bar, and featured image on singular;
- * the last of those has known-wrong directions and is the next replay candidate
- * (V21, V33).
+ * all — V32). The featured image reads the per-post metabox alone (ADR-0006).
+ * Hook-state survives for primary nav and top bar only — the replay list has only
+ * ever grown, so treat those two as provisional (V32, V33).
  *
  * Lazy + memoized: full resolution runs ≤1× per request (V5). First call is always
  * after `wp` (body-class consumer at wp:110; condition consumer at render_block).
@@ -101,10 +101,13 @@ class BWS_GP_Layout_Detector {
 				'class'  => 'gp-no-top-bar',
 			),
 			'featured_image' => array(
+				// The per-post metabox layer only, on every page type (ADR-0006).
 				// Config-based NOT render-based (V7) — see is_featured_image_disabled().
 				'method' => 'is_featured_image_disabled',
 				'rule'   => 'featured_image_active',
-				'label'  => __( 'Featured Image Active', 'bws-generate-layout-conditions' ),
+				// Qualified because the slug is frozen (V27) while the label is not,
+				// and the rule needs telling apart from the theme-slot sibling.
+				'label'  => __( 'Featured Image Active (post setting)', 'bws-generate-layout-conditions' ),
 				'class'  => 'gp-no-featured-image',
 			),
 			'content_title'  => array(
@@ -221,29 +224,43 @@ class BWS_GP_Layout_Detector {
 		return ! self::env()->has_hook( 'generate_before_header', 'generate_top_bar' );
 	}
 
-	private static function is_featured_image_disabled() {
-		// Hook is only added on is_singular() — absence on archives is meaningless (B2),
-		// so non-singular uses config-replay instead (T8, closes the V22 gap): Layout
-		// Element "disable_featured_image" fires remove_action WITHOUT an is_singular()
-		// guard (gp-premium elements/class-layout.php:315), so it disables on archives
-		// too. Same engine as header/footer. Post-metabox layer stays correctly absent
-		// off-singular (ADR-0002).
-		if ( ! self::env()->is_singular() ) {
-			return self::layout_element_disables( '_generate_disable_featured_image' );
-		}
+	// -----------------------------------------------------------------------
+	// Featured image — the per-post metabox, and nothing else (ADR-0006)
+	//
+	// One source, one meaning on every page type. The rule answers "has the
+	// editor switched the featured image off for this post?", which is the
+	// question the checkbox in the post sidebar asks.
+	//
+	// Two things are deliberately NOT read, and both would be easy to re-add as
+	// obvious omissions:
+	//
+	//   * NO HOOK, on any page type. GP registers its render callback on one of
+	//     three hooks chosen by a Customizer position setting, and neither
+	//     shipped default is the one v1 probed — so the old read was wrong on a
+	//     stock install, before any relocation was involved (V33). It also went
+	//     absent whenever a Page Hero drew the image itself, which is a move,
+	//     not a removal (V21).
+	//   * NOT the Layout Element key. This is where the signal diverges from
+	//     content title, which DOES replay its element key (ADR-0005), and the
+	//     divergence is evidence-backed rather than habitual: the image is drawn
+	//     from hooks outside the template part, so a template that renders its
+	//     own must suppress GP's explicitly, and a Layout Element is the only
+	//     per-page way to do that on an archive. The key is contaminated with
+	//     relocation intent by construction. Reading it reports "disabled" on
+	//     pages that visibly show an image.
+	//
+	// Off singular the metabox layer cannot apply (ADR-0002), so the signal is a
+	// constant there — uniformly, not as an archive special case. That REMOVES
+	// the non-singular replay shipped in 0.2.0 (V22, reversed).
+	//
+	// Config-based, NOT render-based (V7). Never consult has_post_thumbnail():
+	// a template drawing the image through a dynamic tag with a fallback renders
+	// something on a thumbnail-less post, and a render-aware rule would condition
+	// that fallback away.
+	// -----------------------------------------------------------------------
 
-		// Config-based, NOT render-based (V7). Never consult has_post_thumbnail().
-		//
-		// V21 ambiguity: Page Hero "Disable featured image" removes this hook because the
-		// Hero embeds the image itself — hook absent but element active in a different
-		// position. Hook-state wins in v1 on singular.
-		//
-		// NOT symmetric with content title: featured image has no template-tag writer
-		// (the Page Header module renders its own image via has_post_thumbnail() without
-		// touching these hooks), so only toggle-driven relocation applies here. Content
-		// title left this hook for config-replay (ADR-0005); featured image has not, and
-		// V21 stays open for it — see the V21 survey before changing that.
-		return ! self::env()->has_hook( 'generate_after_entry_header', 'generate_blog_single_featured_image' );
+	private static function is_featured_image_disabled() {
+		return self::post_metabox_disables( '_generate-disable-post-image' );
 	}
 
 	// -----------------------------------------------------------------------

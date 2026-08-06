@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# layout-states — render-level test harness (T11 + T10 + T15/T16 /
-# V14, V24, V25, V31).
+# layout-states — render-level test harness (T11 + T10 + T15/T16 + T17/T18 +
+# ADR-0006 / V14, V24, V25, V31, V32).
 #
 # Asserts on RENDERED HTML. Everything else in this blueprint runs under wp-cli,
 # and for these invariants wp-cli is structurally blind:
@@ -53,6 +53,10 @@
 #   * Section 7 (T17) is neither characterization nor inversion — it is the first
 #     section covering a layer that had NO signal at all before it, so both its
 #     positive assertions were red for the whole life of the plugin until T17.
+#   * Section 8 (ADR-0006) is a second inversion pass, on the featured image. The
+#     hero page and the archive both used to emit gp-no-featured-image and must
+#     not now — and so, on this testbed, did the baseline, which is V33 showing
+#     up in the harness rather than a fixture quirk. See the section header.
 #
 set -euo pipefail
 
@@ -590,6 +594,92 @@ esac
 case "${SECNAV}" in
     *'gp-no-secondary-nav'*) ok 'control: gp-no-secondary-nav still emitted for the per-post metabox layer (T17 added a layer, it did not replace one)' ;;
     *) bad 'gp-no-secondary-nav MISSING on the metabox page — T17 broke the layer it was meant to extend.' ;;
+esac
+
+# ---------------------------------------------------------------------------
+# 8. ADR-0006 — Featured Image Active reports the POST SETTING, nothing else.
+#
+# A fourth era, and the second inversion pass. Sections 6 and 7 assert the
+# Detector's output for the title and secondary-nav signals; this one does the
+# same for the featured image, whose rule stopped reading BOTH the hook and the
+# Layout Element key.
+#
+# The two inverted assertions are the hero page and the archive. Under the
+# pre-ADR-0006 rule:
+#
+#   * ls-page-hero carries a Page Hero Block Element with "Disable featured
+#     image" — a RELOCATION. The Hero draws the image itself and removes GP's
+#     callback to avoid a duplicate, so hook-state read "disabled" and the class
+#     was emitted on a page that shows an image (V21).
+#   * /department/sales/ carries ls-el-layout-featured-archive, and the
+#     non-singular replay branch (V22/T8) read its key, so the class was emitted
+#     on every page that element covers.
+#
+# Both must now be ABSENT. Neither source is read on any page type.
+#
+# Worth naming because it is easy to misread as an over-broad control: on this
+# testbed the pre-ADR-0006 rule emitted gp-no-featured-image on the BASELINE too.
+# Section 0 pins the blog image position to `inside-content`, so GP's callback
+# sits on `generate_before_content` while the old rule probed
+# `generate_after_entry_header` — absent everywhere, on every singular page,
+# which is V33's out-of-the-box misread showing up in the harness. The baseline
+# control below is therefore a third inversion in substance, and the strongest
+# single guard here: a revert to hook-state fails it on a page with nothing
+# configured at all.
+# ---------------------------------------------------------------------------
+echo ""
+echo "8. ADR-0006 — featured image = the per-post toggle, on every page type"
+
+HERO=$(fetch 'ls-page-hero' || true)
+
+[ -n "${HERO}" ] || err "empty response for ls-page-hero — every assertion in this section is presence/absence against the body and would pass vacuously."
+
+case "${HERO}" in
+    *'</html>'*) ok "ls-page-hero is a complete HTML document ($(printf '%s' "${HERO}" | wc -c) bytes)" ;;
+    *) err 'ls-page-hero response is not complete HTML — refusing to assert against a truncated body' ;;
+esac
+
+# Liveness precondition, same discipline as the loop-card check in section 6 and
+# for the same reason: if the Page Hero element is not applying to this page then
+# nothing relocates the image, and the absence check below passes for a reason
+# that has nothing to do with the behaviour under test. The element's own block
+# content is the marker — it renders only when the element is live.
+case "${HERO}" in
+    *'ls-page-hero-element'*) ok 'Page Hero element is live on ls-page-hero (its block content renders)' ;;
+    *) err 'ls-el-page-hero is not applying to ls-page-hero — the relocation under test is not happening, so the assertion below would pass vacuously. Most likely the element carries no _generate_hook, which makes GP return before registering it at all (inert from v1 to v6). Reseed layout-states at v7+.' ;;
+esac
+
+case "${HERO}" in
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the Page Hero page — a relocation is being read as a disable. This is the pre-ADR-0006 hook-state behaviour: the Hero removes GP'"'"'s image callback because it draws the image itself, and the rule must not read that hook on any page type.' ;;
+    *) ok 'ADR-0006: no gp-no-featured-image under a Page Hero relocation (inverted — hook-state emitted it here)' ;;
+esac
+
+# Liveness for THIS one is proven in a different suite, deliberately: `verify.php`
+# §6 bootstraps a real archive query and asserts ls-el-layout-featured-archive
+# applies to /department/sales/. There is no marker for it in the response —
+# the element carries only a disable toggle and renders nothing of its own, so
+# unlike the hero above it cannot announce itself here. Run the two together;
+# this absence check is only meaningful downstream of that one. B6 is why the
+# §6 check exists at all — that fixture matched no request for three blueprint
+# versions.
+case "${ARCHIVE}" in
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on /department/sales/ — the non-singular Layout Element replay is still running. ADR-0006 removes it: off singular the rule is a constant, because its only source is the per-post metabox and that layer cannot apply to an archive.' ;;
+    *) ok 'ADR-0006: no gp-no-featured-image on the archive (inverted — the V22/T8 replay branch emitted it)' ;;
+esac
+
+# Controls. The first is the ONLY thing that can still emit this class, so
+# without it a Detector that had stopped reporting the signal entirely would pass
+# both absence checks above. The second is where a revert to hook-state lands:
+# nothing is configured on the baseline, and section 0 has pinned the image
+# position such that the old probe missed on every singular page (V33).
+case "${FEATURED}" in
+    *'gp-no-featured-image'*) ok 'control: gp-no-featured-image IS emitted for the per-post metabox toggle (the rule'"'"'s only source)' ;;
+    *) bad 'gp-no-featured-image MISSING on ls-page-metabox-featured — the per-post toggle is no longer detected, and it is the rule'"'"'s only source. The absence assertions above prove nothing without this.' ;;
+esac
+
+case "${BASELINE}" in
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the baseline, where nothing is disabled. Pre-ADR-0006 this was the SHIPPED behaviour on a default install (V33): the probed hook is only used at the `below-title` image position, and section 0 pins this site to `inside-content`. A hook-state read lands here.' ;;
+    *) ok 'control: no gp-no-featured-image on the baseline (inverted — the hook-state read emitted it on every singular page here)' ;;
 esac
 
 # ---------------------------------------------------------------------------

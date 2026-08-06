@@ -168,6 +168,20 @@ if ( $exc_id ) {
 		: $bad( 'user conditions malformed: ' . wp_json_encode( $users ) );
 }
 
+// A Page Hero block element needs _generate_hook. `page-hero` is not one of the
+// types GP's switch resolves a hook for (class-block.php:110-140), so with the
+// key absent the loader returns at `if ( ! $hook )` — before registering either
+// the render callback or the wp:100 remove_elements that performs the relocation.
+// The fixture was in exactly that state from v1 to v6 and was invisible: it
+// existed, was published, and carried both toggle keys. Third of the B6/B7 family.
+$hero_id = $element_ids['ls-el-page-hero'];
+if ( $hero_id ) {
+	$hero_hook = get_post_meta( $hero_id, '_generate_hook', true );
+	'' !== $hero_hook
+		? $ok( "page-hero element carries _generate_hook ({$hero_hook}) — GP will load it" )
+		: $bad( 'page-hero element has NO _generate_hook — GP returns before registering it, so the element renders nothing and removes nothing. It is inert, silently. Reseed layout-states at v7+.' );
+}
+
 // ---------------------------------------------------------------------------
 // 3. The prod adapter's query finds the layout elements (seam fidelity).
 //
