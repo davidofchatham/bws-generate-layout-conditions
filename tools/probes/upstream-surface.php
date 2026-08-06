@@ -279,6 +279,78 @@ foreach ( $expected_slugs as $slug => $class ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * 4b. Our RULES land, with their operators intact.
+ *
+ * §4 proves the condition types registered. This proves the rules inside them
+ * survive upstream's pipeline, which is a separate question: the abstract's
+ * get_operators_for_rule() (class-condition-abstract.php:886) does not return
+ * what the plugin registered — it looks the type up in
+ * GenerateBlocks_Pro_Conditions::get_condition_types() and then FILTERS the list
+ * by whether the rule supports multi-select, which it decides from the rule's own
+ * value_type. A change to either half can silently drop an operator for a
+ * valueless rule (V10), and the editor would then offer a rule with no way to
+ * negate it while everything in §4 still passes.
+ *
+ * `featured_image_slot_active` (issue #4) is named literally because it is the
+ * plugin's only rule that is not derived from the Detector's signal registry, so
+ * it is the one a registry-driven check cannot cover. Its label is asserted too:
+ * it exists to be told apart from `featured_image_active` in the dropdown, which
+ * is a UI promise, not an internal one.
+ * ------------------------------------------------------------------------- */
+
+WP_CLI::log( '' );
+WP_CLI::log( '4b. plugin rules registered with operators intact' );
+
+$element_rules = GenerateBlocks_Pro_Conditions_Registry::get_instance( 'gp_theme_element' )->get_rules();
+$sidebar_rules = GenerateBlocks_Pro_Conditions_Registry::get_instance( 'gp_theme_sidebar' )->get_rules();
+
+// Rule count (V11). Asserted here as well as in the unit suite because this is
+// the count as the EDITOR sees it, after registration.
+count( $element_rules ) + count( $sidebar_rules ) === 11
+	? $ok( sprintf( '11 rules across both types (%d element + %d sidebar) — V11', count( $element_rules ), count( $sidebar_rules ) ) )
+	: $bad( sprintf(
+		'rule count is %d element + %d sidebar, expected 8 + 3 = 11 (V11). A rule appeared or vanished between the unit suite and a real boot.',
+		count( $element_rules ),
+		count( $sidebar_rules )
+	) );
+
+isset( $element_rules['featured_image_slot_active'] )
+	? $ok( 'featured_image_slot_active present in gp_theme_element' )
+	: $bad( 'featured_image_slot_active MISSING from gp_theme_element — the one rule not derived from the signal registry (issue #4)' );
+
+if ( isset( $element_rules['featured_image_slot_active'] ) ) {
+	'Featured Image Slot Active (theme)' === $element_rules['featured_image_slot_active']
+		? $ok( 'featured_image_slot_active label reads "Featured Image Slot Active (theme)"' )
+		: $bad( sprintf(
+			'featured_image_slot_active label is "%s" — it must name its layer to be tellable from Featured Image Active (post setting) in the dropdown',
+			$element_rules['featured_image_slot_active']
+		) );
+}
+
+foreach ( array( 'gp_theme_element' => $element_rules, 'gp_theme_sidebar' => $sidebar_rules ) as $slug => $rules ) {
+	$instance = GenerateBlocks_Pro_Conditions_Registry::get_instance( $slug );
+
+	foreach ( array_keys( $rules ) as $rule ) {
+		$operators = array_values( (array) $instance->get_operators_for_rule( $rule ) );
+
+		$operators === array( 'is', 'is_not' )
+			? $ok( sprintf( '%s.%s operators [is, is_not]', $slug, $rule ) )
+			: $bad( sprintf(
+				'%s.%s operators came back as [%s] — the plugin registers [is, is_not] and apply_operator() handles only those. Upstream filters this list by the rule metadata; check get_operators_for_rule() and rule_supports_multi_select().',
+				$slug,
+				$rule,
+				implode( ', ', $operators )
+			) );
+
+		$metadata = (array) $instance->get_rule_metadata( $rule );
+
+		empty( $metadata['needs_value'] ) && 'none' === ( $metadata['value_type'] ?? '' )
+			? $ok( sprintf( '%s.%s needs no value (V10)', $slug, $rule ) )
+			: $bad( sprintf( '%s.%s reports needs_value/value_type = %s (V10 requires false/none)', $slug, $rule, var_export( $metadata, true ) ) );
+	}
+}
+
+/* ---------------------------------------------------------------------------
  * 5. GP Premium surface: show_data() and generate_get_layout().
  *
  * show_data() is config-replay's entire mechanism (V2/V4). Its ARITY is the

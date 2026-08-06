@@ -13,7 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Both modeled on class-condition-device.php (V10): no value field, operators
  * is/is_not. evaluate() discards $context['post_id'] — page-level state (V6).
  * "Active" = not-disabled-by-config, NOT actual-render. Never consult
- * has_post_thumbnail() or GP's featured-image-active class (V7).
+ * has_post_thumbnail() or GP's featured-image-active class (V7) — including in
+ * `featured_image_slot_active`, which reports whether GP's render callbacks are
+ * attached and says nothing about whether a thumbnail exists (issue #4).
  *
  * Self-gated: this file is only required() when GB Pro is present (see bootstrap).
  * Runtime class_exists guard below is an extra safety net (V13).
@@ -77,11 +79,14 @@ abstract class BWS_GP_No_Value_Condition extends GenerateBlocks_Pro_Condition_Ab
 }
 
 /**
- * Theme Element Status — the 7 component disable states (V11, V27).
+ * Theme Element Status — the 7 component disable states, plus the theme's own
+ * featured-image slot (V11, V27, issue #4). 8 rules.
  *
  * Each signal rule is true when the component is NOT disabled by config
  * ("Active", V7). Their rules, labels and state keys all come from the Detector's
- * signal registry (T7) — this class holds no signal enumeration of its own.
+ * signal registry (T7) — this class holds no signal enumeration of its own. The
+ * slot rule is not a signal: it is reported positive, carries no body class, and
+ * is declared in rule_table() below.
  */
 class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 
@@ -116,6 +121,38 @@ class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 				'invert' => true,
 			);
 		}
+
+		/*
+		 * The theme's own featured-image slot (issue #4) — the one row that is not
+		 * a signal, and the only rule read straight from the state map.
+		 *
+		 * It answers "is GeneratePress itself drawing a featured image here?",
+		 * beside `featured_image_active`, which answers "has the editor switched
+		 * the image off for this post?". Two questions about different subjects, so
+		 * the label qualifies both by layer (V11) rather than either being renamed.
+		 *
+		 * `invert => false` is the whole reason rule_table() exists. The Detector
+		 * stores this state positive, so inverting it here would report the exact
+		 * opposite of the truth while the state map stayed correct — a mistake no
+		 * Detector test can see.
+		 *
+		 * No body class, deliberately (V8/ADR-0004): a third featured-image-related
+		 * class on one body element — the existing negative `gp-no-featured-image`,
+		 * GP's own render-based `featured-image-active`, plus one more — is a
+		 * confusion hazard, and class names are permanent public surface once
+		 * shipped. The class layer stays at the seven signal names, which is why
+		 * this row lives here rather than in the signal registry.
+		 *
+		 * Nested inside `featured_image_active` by mechanism: the plugin removes
+		 * GP's five image callbacks when the per-post toggle is set, so this rule is
+		 * false whenever that one is. "Post setting disabled, slot active" is
+		 * unreachable; see is_featured_image_slot_active().
+		 */
+		$rules['featured_image_slot_active'] = array(
+			'state'  => 'featured_image_slot_active',
+			'label'  => __( 'Featured Image Slot Active (theme)', 'bws-generate-layout-conditions' ),
+			'invert' => false,
+		);
 
 		return $rules;
 	}
