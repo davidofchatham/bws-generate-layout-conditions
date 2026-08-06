@@ -360,17 +360,46 @@ class DetectorTest extends TestCase {
 		);
 	}
 
-	public function test_featured_image_slot_not_active_when_nothing_draws_the_image_issue4(): void {
+	/**
+	 * The suppression case, on a Blog-module site: the module is active (so the
+	 * theme pair is gone, as it removes those itself at wp:50) and a Page Hero or
+	 * Layout Element has taken its callback off all three positions. The env is
+	 * built by subtraction from the all-present case so it cannot drift out of
+	 * step with the provider.
+	 */
+	public function test_featured_image_slot_not_active_when_an_element_suppressed_it_issue4(): void {
 		$this->env->singular   = true;
 		$this->env->queried_id = 10;
-		// A Page Hero relocation, a Layout Element kill switch, the Customizer's
-		// global image toggle, or this plugin's own per-post suppression — all of
-		// them land here, with no image callback on any of the five positions.
-		// This is the case the rule exists for.
 
 		$this->assertFalse(
 			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
-			'no image callback on any of the five positions means GP is not drawing one (issue #4)'
+			'a Page Hero or Layout Element that removed GP\'s image callback means GP is not drawing one (issue #4)'
+		);
+	}
+
+	/**
+	 * The Blog-module-deactivated case, both directions. With that module off the
+	 * theme page-header pair is the live path, so its absence is the whole answer —
+	 * and the "active where they are" half is covered by two provider rows above.
+	 * Asserted as a pair here because a rule reading only the blog callback would
+	 * pass the first arm and fail the second.
+	 */
+	public function test_featured_image_slot_follows_the_theme_pair_without_the_blog_module_issue4(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		// Neither theme page-header callback registered, and no blog callback
+		// either — the module that defines it is off.
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'with the Blog module off and neither theme page-header callback registered, GP draws nothing (issue #4)'
+		);
+
+		$this->env->hooks[] = 'generate_after_header|generate_featured_page_header';
+		BWS_GP_Layout_Detector::reset_cache();
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'the theme page-header path alone must report the slot active — reading the blog callback only would miss it (issue #4)'
 		);
 	}
 

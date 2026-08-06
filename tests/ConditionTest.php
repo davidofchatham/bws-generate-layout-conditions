@@ -43,16 +43,16 @@ class ConditionTest extends TestCase {
 	public function test_element_rule_slugs_and_labels_are_frozen_v27(): void {
 		$this->assertSame(
 			array(
-				'header_active'         => 'Header Active',
-				'footer_active'         => 'Footer Active',
-				'primary_nav_active'    => 'Primary Nav Active',
-				'secondary_nav_active'  => 'Secondary Nav Active',
-				'top_bar_active'        => 'Top Bar Active',
+				'header_active'              => 'Header Active',
+				'footer_active'              => 'Footer Active',
+				'primary_nav_active'         => 'Primary Nav Active',
+				'secondary_nav_active'       => 'Secondary Nav Active',
+				'top_bar_active'             => 'Top Bar Active',
 				// Qualified label (ADR-0006). The SLUG is frozen (V27); the label is
 				// not persisted, and the qualifier earns its place beside the sibling
 				// slot rule this signal now sits next to.
-				'featured_image_active' => 'Featured Image Active (post setting)',
-				'content_title_active'  => 'Content Title Active',
+				'featured_image_active'      => 'Featured Image Active (post setting)',
+				'content_title_active'       => 'Content Title Active',
 				// The one rule that is not a signal (issue #4). Slug carries no
 				// prefix — the condition type already names the theme (V27).
 				'featured_image_slot_active' => 'Featured Image Slot Active (theme)',
