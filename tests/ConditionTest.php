@@ -13,11 +13,21 @@ class ConditionTest extends TestCase {
 	private $env;
 
 	protected function setUp(): void {
-		$this->env        = new BWS_GP_Fake_Environment();
-		// Top bar only: the featured-image render hook left this list with ADR-0006
-		// — no hook is read for that signal any more. See DetectorTest.
+		$this->env             = new BWS_GP_Fake_Environment();
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		// A request where every rule reads Active: GP's render callbacks attached,
+		// no meta, no elements.
 		$this->env->hooks = array(
 			'generate_before_header|generate_top_bar',
+			// The featured-image SLOT rule reads hook state across both of GP's
+			// render paths (issue #4). Deliberately the `inside-content` position
+			// and NOT `generate_after_entry_header|generate_blog_single_featured_image`
+			// — that pair is the one the featured_image *signal* probed before
+			// ADR-0006, so a Detector reverted to reading it for that signal still
+			// fails test_active_rules_true_when_nothing_disabled_v7 here. It is also
+			// the position the render harness pins (render-surface.sh §0).
+			'generate_before_content|generate_blog_single_featured_image',
 		);
 		BWS_GP_Layout_Detector::set_environment( $this->env );
 		BWS_GP_Layout_Detector::reset_cache();
@@ -43,9 +53,26 @@ class ConditionTest extends TestCase {
 				// slot rule this signal now sits next to.
 				'featured_image_active' => 'Featured Image Active (post setting)',
 				'content_title_active'  => 'Content Title Active',
+				// The one rule that is not a signal (issue #4). Slug carries no
+				// prefix — the condition type already names the theme (V27).
+				'featured_image_slot_active' => 'Featured Image Slot Active (theme)',
 			),
 			( new BWS_GP_Theme_Element_Condition() )->get_rules()
 		);
+	}
+
+	/**
+	 * The rule count itself (V11). Asserted as a count as well as a map because
+	 * the count is what the invariant states and what a reader checks against the
+	 * docs — a rule added without updating V11 fails here by name.
+	 */
+	public function test_rule_count_is_eleven_v11(): void {
+		$element = ( new BWS_GP_Theme_Element_Condition() )->get_rules();
+		$sidebar = ( new BWS_GP_Theme_Sidebar_Condition() )->get_rules();
+
+		$this->assertCount( 8, $element, '7 signal rules + the theme slot rule (V11)' );
+		$this->assertCount( 3, $sidebar, 'sidebar membership rules (V26)' );
+		$this->assertCount( 11, array_merge( $element, $sidebar ), 'total rule count (V11)' );
 	}
 
 	public function test_sidebar_rule_slugs_and_labels_are_frozen_v27(): void {
@@ -103,6 +130,54 @@ class ConditionTest extends TestCase {
 
 		$this->assertFalse( $element->evaluate( 'header_active', 'is', null ) );
 		$this->assertTrue( $element->evaluate( 'footer_active', 'is', null ) );
+	}
+
+	// --- Issue #4: the slot rule's polarity, which lives only here -----------
+	//
+	// Seven rules read a DISABLE-polarity state and invert it; this one reads a
+	// state already stored the way it is reported and must not be inverted. The
+	// Detector cannot catch a mistake here — its state map is right either way — so
+	// this is the only place the non-inversion is checked, and it must fail if the
+	// seven signals' polarity is applied to the row.
+
+	public function test_slot_rule_is_not_inverted_by_the_condition_layer_issue4(): void {
+		$element = new BWS_GP_Theme_Element_Condition();
+
+		// setUp attaches one of GP's image callbacks: the slot IS live, and the
+		// state map says so. Under the signals' polarity this reads false.
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'precondition: the state map reports the slot live'
+		);
+		$this->assertTrue(
+			$element->evaluate( 'featured_image_slot_active', 'is', null ),
+			'the slot state is stored positive and must NOT be inverted by the condition layer (issue #4)'
+		);
+
+		// Nothing drawing the image — a relocation, a kill switch, or the
+		// Customizer's global toggle. Both halves are needed: an unconditionally
+		// true rule would pass the assertion above for the wrong reason.
+		$this->env->hooks = array( 'generate_before_header|generate_top_bar' );
+		BWS_GP_Layout_Detector::reset_cache();
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'precondition: the state map reports the slot not live'
+		);
+		$this->assertFalse(
+			$element->evaluate( 'featured_image_slot_active', 'is', null ),
+			'with no image callback attached the rule must report not-active (issue #4)'
+		);
+	}
+
+	public function test_slot_rule_is_not_inverted_off_singular_issue4(): void {
+		$this->env->singular = false;
+		BWS_GP_Layout_Detector::reset_cache();
+
+		$this->assertFalse(
+			( new BWS_GP_Theme_Element_Condition() )->evaluate( 'featured_image_slot_active', 'is', null ),
+			'off singular the native slot does not exist, so the rule reports not-active (issue #4)'
+		);
 	}
 
 	// --- V10: one operator formula, is_not inverts --------------------------

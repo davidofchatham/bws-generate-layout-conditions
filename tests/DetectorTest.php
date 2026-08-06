@@ -1,4 +1,5 @@
 <?php
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -307,6 +308,81 @@ class DetectorTest extends TestCase {
 		$this->assertFalse(
 			BWS_GP_Layout_Detector::states()['featured_image'],
 			'off singular the metabox layer contributes nothing, so the rule is a constant (ADR-0006)'
+		);
+	}
+
+	// --- Issue #4: the theme's own featured-image slot, positive polarity ----
+	//
+	// A second question about a different subject: not "has the editor switched
+	// the image off for this post?" (featured_image, ADR-0006) but "is
+	// GeneratePress itself drawing one on this request?". Hook state answers it
+	// directly and safely — there is no Loop-Template-shaped case that deletes the
+	// slot without touching a hook, which is what made the title's Meaning B
+	// unsafe — provided it reads BOTH render paths. Only one is live per site and
+	// which one depends on the Blog module's activation state, so reading a single
+	// path is the exact failure B8 was written for, one level over.
+	//
+	// The state is stored POSITIVE, keyed to match its rule slug. Its polarity is
+	// asserted at the condition boundary (ConditionTest), which is the only place
+	// it could be inverted.
+
+	/**
+	 * The five callbacks the slot reads, one case each — so dropping any one of
+	 * them fails a named assertion rather than a shared one.
+	 *
+	 * @return array
+	 */
+	public static function featured_image_slot_render_path_provider(): array {
+		return array(
+			// Blog module path: one callback, one of three hooks chosen by the
+			// Customizer image position. Neither shipped default is the first row —
+			// that is what made the old featured_image hook read wrong out of the
+			// box (V33), and why all three are read here rather than the one.
+			'blog module, below-title position'    => array( 'generate_after_entry_header|generate_blog_single_featured_image' ),
+			'blog module, inside-content position' => array( 'generate_before_content|generate_blog_single_featured_image' ),
+			'blog module, above-content position'  => array( 'generate_after_header|generate_blog_single_featured_image' ),
+			// Theme page-header path: live only where the Blog module is off, since
+			// that module removes both of these itself at wp:50 (B8).
+			'theme page header, after header'      => array( 'generate_after_header|generate_featured_page_header' ),
+			'theme page header, inside single'     => array( 'generate_before_content|generate_featured_page_header_inside_single' ),
+		);
+	}
+
+	#[DataProvider( 'featured_image_slot_render_path_provider' )]
+	public function test_featured_image_slot_active_on_each_render_path_issue4( string $hook ): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->hooks[]    = $hook;
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			"$hook is one of GP's five image-render callbacks — the slot must report active (issue #4)"
+		);
+	}
+
+	public function test_featured_image_slot_not_active_when_nothing_draws_the_image_issue4(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		// A Page Hero relocation, a Layout Element kill switch, the Customizer's
+		// global image toggle, or this plugin's own per-post suppression — all of
+		// them land here, with no image callback on any of the five positions.
+		// This is the case the rule exists for.
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'no image callback on any of the five positions means GP is not drawing one (issue #4)'
+		);
+	}
+
+	public function test_featured_image_slot_not_active_off_singular_issue4(): void {
+		$this->env->singular = false;
+		foreach ( self::featured_image_slot_render_path_provider() as $case ) {
+			$this->env->hooks[] = $case[0];
+		}
+
+		$this->assertFalse(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'the native singular slot does not exist off singular, so hook presence there is meaningless (issue #4)'
 		);
 	}
 

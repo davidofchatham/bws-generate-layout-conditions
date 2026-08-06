@@ -132,6 +132,8 @@ class BWS_GP_Layout_Detector {
 	 *     @type bool   $featured_image Featured image disabled.
 	 *     @type bool   $content_title  Content title disabled.
 	 *     @type string $sidebar        'left-sidebar'|'right-sidebar'|'no-sidebar'|'both-sidebars'
+	 *     @type bool   $featured_image_slot_active GP's own featured-image slot live.
+	 *                                             POSITIVE polarity — see below.
 	 * }
 	 */
 	public static function states() {
@@ -144,6 +146,10 @@ class BWS_GP_Layout_Detector {
 			$states[ $key ] = self::{$signal['method']}();
 		}
 		$states['sidebar'] = self::get_sidebar_layout();
+
+		// Not a signal row: positive polarity, no body class, keyed to match its
+		// own rule slug rather than a registry key (issue #4).
+		$states['featured_image_slot_active'] = self::is_featured_image_slot_active();
 
 		self::$cache = $states;
 
@@ -261,6 +267,80 @@ class BWS_GP_Layout_Detector {
 
 	private static function is_featured_image_disabled() {
 		return self::post_metabox_disables( '_generate-disable-post-image' );
+	}
+
+	// -----------------------------------------------------------------------
+	// Featured-image SLOT — is GeneratePress itself drawing one? (issue #4)
+	//
+	// A different question from is_featured_image_disabled() above, about a
+	// different subject: the theme's slot, not the author's post setting. Hook
+	// state is the right instrument here precisely because the question is about
+	// what GP has wired up, and it is safe here in a way it was not for the
+	// featured_image signal — a relocation removing the callback is exactly the
+	// "not drawing one" this rule reports, rather than a disable it must not
+	// mistake for one.
+	//
+	// STORED POSITIVE, unlike the seven signals. The state key matches the rule
+	// slug (`featured_image_slot_active`), and the condition layer must NOT invert
+	// it — that non-inversion lives in the condition's rule table and is asserted
+	// at the condition boundary, which is the only place it can go wrong.
+	//
+	// BOTH render paths, five callbacks, and the both-ness is the decision:
+	//   * The GP Premium Blog module's `generate_blog_single_featured_image`, on
+	//     one of three hooks selected by a Customizer image position
+	//     (`blog/functions/images.php:169-181`). All three, because the position
+	//     is a global setting this plugin does not read — and because neither
+	//     shipped default is the position v1 probed (V33).
+	//   * The theme's page-header pair (`featured-images.php:96` / `:114`), live
+	//     only where the Blog module is off: when it is on it removes both of them
+	//     itself, unconditionally, at wp:50 (`images.php:164-165`).
+	// Only one path is live per site and which one depends on module state, which
+	// this plugin cannot see. Reading a single path is the failure B8 was written
+	// for on the suppression side, one level over.
+	//
+	// Off singular the answer is a constant. GP's own singular slot does not exist
+	// there — the Blog module adds its callback on `is_singular()` (B2/V20's
+	// original observation) and the theme pair renders the page-header image for a
+	// singular post — so hook presence off singular says nothing about a slot that
+	// is not part of the page. Item images inside loop cards are a different,
+	// item-level surface and out of remit (same cut as item titles, V30).
+	//
+	// NESTED INSIDE `featured_image`, by mechanism rather than by a guard. This
+	// plugin removes all five callbacks at wp:60 when `_generate-disable-post-image`
+	// is set (class-disable-elements.php, B8), and the Detector first resolves
+	// later than that — so "post setting disabled, slot active" is unreachable on a
+	// real request. Documented, not defended against: adding a guard here would
+	// duplicate a relationship the suppression already enforces, and the fake
+	// environment can construct the unreachable combination because it has no
+	// suppression at all.
+	//
+	// Config-based, NOT render-based (V7), and the name says "slot active" rather
+	// than "rendered" for that reason: it never consults has_post_thumbnail(). On a
+	// thumbnail-less post GP's callbacks are still attached and the rule still
+	// reports active, so a fallback image drawn by the author's own template is
+	// not conditioned away.
+	// -----------------------------------------------------------------------
+
+	private static function is_featured_image_slot_active() {
+		if ( ! self::env()->is_singular() ) {
+			return false;
+		}
+
+		// Blog-module path first: when that module is active it is the only live
+		// path, having removed the theme pair itself.
+		foreach ( array(
+			'generate_after_entry_header', // below-title
+			'generate_before_content',     // inside-content
+			'generate_after_header',       // above-content
+		) as $hook ) {
+			if ( self::env()->has_hook( $hook, 'generate_blog_single_featured_image' ) ) {
+				return true;
+			}
+		}
+
+		// Theme page-header path — the sites without the Blog module.
+		return self::env()->has_hook( 'generate_after_header', 'generate_featured_page_header' )
+			|| self::env()->has_hook( 'generate_before_content', 'generate_featured_page_header_inside_single' );
 	}
 
 	// -----------------------------------------------------------------------

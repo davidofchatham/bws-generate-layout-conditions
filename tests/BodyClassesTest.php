@@ -76,6 +76,36 @@ class BodyClassesTest extends TestCase {
 		$this->assertSame( array( 'gp-no-featured-image' ), bws_glc_add_body_classes( array() ) );
 	}
 
+	/**
+	 * Issue #4: the theme slot rule emits no class in either state, and the class
+	 * surface stays at the seven signal names. Both states are exercised because
+	 * the emitter reads truthiness — a slot state that leaked into the loop would
+	 * show up in the active case only.
+	 */
+	public function test_featured_image_slot_emits_no_body_class_issue4(): void {
+		$this->env->singular   = true;
+		$this->env->queried_id = 10;
+		$this->env->hooks[]    = 'generate_before_content|generate_blog_single_featured_image';
+
+		$this->assertTrue(
+			BWS_GP_Layout_Detector::states()['featured_image_slot_active'],
+			'precondition: the state is present and reports the slot live'
+		);
+		$this->assertSame(
+			array(),
+			bws_glc_add_body_classes( array() ),
+			'the theme slot rule gets no body class — the class surface stays at seven names (issue #4)'
+		);
+
+		// And nothing appears when the slot is NOT live either: the absent-slot case
+		// is the one a `gp-no-*` name would be tempting for.
+		$this->env->hooks = array( 'generate_before_header|generate_top_bar' );
+		BWS_GP_Layout_Detector::reset_cache();
+
+		$this->assertFalse( BWS_GP_Layout_Detector::states()['featured_image_slot_active'] );
+		$this->assertSame( array(), bws_glc_add_body_classes( array() ) );
+	}
+
 	public function test_no_sidebar_class_ever_v8(): void {
 		$this->env->sidebar = 'both-sidebars';
 

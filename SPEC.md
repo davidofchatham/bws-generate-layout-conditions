@@ -11,7 +11,7 @@ This file tracks what is *in flight right now* — open questions and the active
 
 ## Scope
 
-In scope: the seven **disable states** (header, footer, primary nav, secondary nav, top bar, featured image, content title) plus **sidebar layout** (left/right/none/both). **Container type / width** are deferred — see `docs/ROADMAP.md`.
+In scope: the seven **disable states** (header, footer, primary nav, secondary nav, top bar, featured image, content title) plus **sidebar layout** (left/right/none/both), plus the **theme's featured-image slot** — not a disable state, and the one rule stored positive (V34, issue #4). **Container type / width** are deferred — see `docs/ROADMAP.md`.
 
 ---
 
