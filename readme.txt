@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.2.1
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,7 +37,7 @@ Additional documentation, including the condition/body-class reference table and
 
 == Changelog ==
 
-= Unreleased =
+= 0.3.0 =
 * Changed: **Featured Image Active** now reports one thing — whether you have switched the featured image off for that post with the per-post Disable Elements checkbox. It no longer reads a Layout Element's featured-image setting, the Customizer, or how GeneratePress has wired itself up at render time. If you draw the featured image from a Content Template or a Page Hero, you have to switch GeneratePress' own copy off to avoid a duplicate — and doing that used to make this rule report the image as disabled, which silently hid every block conditioned on it, including the block drawing the image. It no longer does. The rule is also now correct on a stock install: previously it reported "disabled" on every singular page unless you had set the Customizer image position to *Below title*, which is not what GeneratePress ships for either posts or pages.
 * Changed: the rule is renamed in the editor to **Featured Image Active (post setting)**, so it is clear which layer it reflects. Saved conditions are unaffected — nothing needs re-selecting.
 * **Removed, please check:** the archive behaviour added in 0.2.0. Featured Image Active used to report "disabled" on archives covered by a Layout Element with the featured-image setting on, and `gp-no-featured-image` appeared there. Neither happens now — the rule is always true off singular pages. This is deliberate: that setting is how a relocation is performed, and on an archive it is the only way to perform one, so reading it hid blocks on exactly the pages where you would be least likely to notice. If you have CSS keyed on `gp-no-featured-image` on archive pages, or a block conditioned on this rule there, audit it before upgrading.
