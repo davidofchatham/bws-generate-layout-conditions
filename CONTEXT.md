@@ -102,3 +102,4 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 - **In-flight work + deferred items** → `SPEC.md`, `docs/ROADMAP.md`
 - **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`
 - **Upstream drift guard** (what breaks silently when GB/GP move) → `tools/probes/README.md`
+- **"Why is this block hiding on this page?"** on a real site, as opposed to a fixture → `tools/inspect/state-map.php`. Prints the resolved state map, every rule as GB Pro evaluates it, and the body classes, for one bootstrapped request. Asserts nothing — it is a microscope, and the four surfaces above remain the things that can fail. One page per process (hook state is process-global; see its README)
