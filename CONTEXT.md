@@ -2,7 +2,7 @@
 
 Standalone WordPress plugin that makes GeneratePress disable states (header/footer/nav/etc.) usable by GeneratePress Block Elements — so a Block Element that replaces a theme section respects the same disable settings the native section would.
 
-This file is the **ubiquitous language** — what each term means, what to call it, what to avoid. The permanent *contract* (invariants, bug ledger, signal map) lives in `docs/architecture.md`; *decisions and rationale* in `docs/adr/`; *in-flight work* in `SPEC.md` and `docs/ROADMAP.md`.
+This file is the **ubiquitous language** — what each term means, what to call it, what to avoid. The permanent *contract* (invariants, bug ledger, signal map) lives in `docs/architecture.md`; *decisions and rationale* in `docs/adr/`; *open work* as GitHub issues, with a one-line ledger of what has landed in `docs/ROADMAP.md`.
 
 ## Language
 
@@ -99,7 +99,7 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 - **Decisions + rationale** (hybrid detection, post-meta reads, dependency gating, naming, content-title meaning) → `docs/adr/`
 - **Accepted detection gaps** (the Customizer layer, and — since ADR-0005 — Meaning B for the title having no signal at all) → architecture.md V20–V22, V24, V33 + "Accepted gap: Meaning B" + signal map. Secondary nav left this list at V32/T17, and the featured image's three entries left it at ADR-0006 — its relocation ambiguity, its narrow hook read, and its unmodeled metabox path are all closed. Note what closed each: the nav gap was recorded as "no clean hook signal", a statement about one *mechanism* that survived the arrival of another; the image gaps were all consequences of reading a hook at all, and went together the moment it stopped. Re-read what is left with that in mind — the Customizer layer is now the only gap shared by three signals, and it is one theme-mod read, not three
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, ADR-0003
-- **In-flight work + deferred items** → `SPEC.md`, `docs/ROADMAP.md`
+- **Open work** → GitHub issues (`gh issue list`; conventions in `docs/agents/issue-tracker.md`). **Landed work, one line each** → `docs/ROADMAP.md`
 - **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`
 - **Upstream drift guard** (what breaks silently when GB/GP move) → `tools/probes/README.md`
 - **"Why is this block hiding on this page?"** on a real site, as opposed to a fixture → `tools/inspect/state-map.php`. Prints the resolved state map, every rule as GB Pro evaluates it, and the body classes, for one bootstrapped request. Asserts nothing — it is a microscope, and the four surfaces above remain the things that can fail. One page per process (hook state is process-global; see its README)

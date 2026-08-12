@@ -23,8 +23,9 @@ only that something moved, not what the new shape is — when the canary fails,
 
 ## Why the canary exists
 
-This testbed [tracks GB/GP betas](../../docs/ROADMAP.md) — it is a lookahead
-environment, not a production mirror. Upstream moves under it without warning.
+This testbed tracks GB/GP **betas** — it is a lookahead environment, not a
+production mirror. Upstream moves under it without warning. The baseline every
+suite has been run against is recorded in `docs/ROADMAP.md`.
 
 The failure mode that motivated it: `GenerateBlocks_Pro_Conditions_Registry::register()`
 validates that the class implements `GenerateBlocks_Pro_Condition_Interface` and,
