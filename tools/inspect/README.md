@@ -60,6 +60,34 @@ what a page emits, use `tools/fixtures/layout-states/render-surface.sh` or fetch
 the page — see the test-surface table in `CONTEXT.md` for which surface can see
 what.
 
+### Running against a real clone
+
+Four things cost time on the issue #6 dry-run and none is discoverable from the
+script:
+
+- **Swap the plugin first.** A clone runs its *installed* copy, not the bind
+  mount — `bin/dev-plugin.sh --site <site> bws-generate-layout-conditions --dev`.
+  Without it the first run fails on `featured_image_slot_active is not
+  registered`, which is the missing swap, not a bug. Revert with `--live`, which
+  restores the pre-swap DB snapshot and takes any wiring you added with it.
+- **`shortpixel-adaptive-images` breaks images on `.test` origins.** It ships
+  active on at least one clone and rewrites every `src` to an inline base64 SVG,
+  deferring the real file to a CDN that cannot reach the origin, so every image
+  on every page is a placeholder. Deactivate it before a visual pass. With it
+  active the placeholders keep the real `width`/`height`, so boxes and reflow
+  stay honest and only "does the photo look right" is unavailable.
+- **A realistic configuration is an over-determined one.** On the clone, a
+  Content Template and a Layout Element both pointed the same way, so five green
+  rows proved nothing about which one the rule was reading — V34 part 5c was
+  found only when the Layout Element was deliberately trashed. Deployed sites are
+  chosen for realism, and realistic configurations are the ones most likely to
+  have two mechanisms agreeing. Remove one and re-read.
+- **The interesting visual state is the hidden one.** In production no block
+  carries these conditions, so the layout you are looking at is the site's
+  existing layout and it renders whether the rule works or not. What a condition
+  newly does is *remove* a block, so the check that carries information is the
+  gap left behind, not the page as it stands.
+
 ### Where it came from
 
 Written during the issue #6 clone dry-run (T21), where the acceptance criteria
