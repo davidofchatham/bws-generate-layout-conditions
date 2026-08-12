@@ -15,8 +15,7 @@ Each landed task's full reasoning was backpropped on land into the invariants, t
 
 | # | Title | State |
 |---|---|---|
-| [#2](../../../issues/2) | Featured Image Active: report post-level intent, and add a rule for GP's own image slot | Spec, open — #7 is the last child outstanding |
-| [#7](../../../issues/7) | Featured Image Slot Active: a Content Template hides the call site, not the callback | V34 part 5c. Silent-failure direction, candidate for closing |
+| [#7](../../../issues/7) | Featured Image Slot Active: a Content Template hides the call site, not the callback | V34 part 5c. Silent-failure direction, candidate for closing. `ready-for-agent` |
 | [#8](../../../issues/8) | Pin V34 part 5's Blog-module-off false-active directions | Needs a second harness run with the module off, not a fixture |
 | [#9](../../../issues/9) | Customizer global element disables are unread — primary nav, secondary nav | V24. One `theme_mod` read, or `wontfix` — decide, don't defer |
 | [#10](../../../issues/10) | Sidebar membership: Detector or consumer-side | V26 revisit, unblocked by T7. May end in a decision, not code |
@@ -45,6 +44,8 @@ Accepted gaps carrying no issue live in `architecture.md`: **Meaning B for the n
 | T19 | 2026-08-06 | Featured image reports post-level intent. The Layout Element key is deliberately **not** replayed — do not restore the symmetry. **Found B9** | ADR-0006, [#3](../../../issues/3), V33, B9 |
 | T20 | 2026-08-06 | Kill-switch fixture + conditioned-block render coverage, blueprint v8 — the first assertions to read the authoring chain end to end | V34, [#5](../../../issues/5), fixtures README |
 | T21 | 2026-08-07 | Clone dry-run on real content, then release. Five rows green; the **visual pass** (2026-08-12) then found V34 part 5c, which five green rows could not | V34 part 5c, [#6](../../../issues/6), [#7](../../../issues/7), `tools/inspect/README.md` |
+
+T19–T21 were the children of spec [#2](../../../issues/2), **released as v0.3.0 on 2026-08-12** and closed with it. #7 and #8 carry a parent line to that spec but are follow-ups rather than unmet scope — #7 names a direction the spec never claimed, #8 pins a residue the spec accepted explicitly.
 
 **Verification baseline.** T12–T14 and everything after were run against **GB Pro 2.7.0-beta.1 / GP Premium 2.5.6**. The testbed [tracks GB/GP betas](../tools/probes/README.md) deliberately — it is a lookahead environment, not a production mirror, which is what the T14 drift canary exists for.
 
