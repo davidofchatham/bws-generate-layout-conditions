@@ -31,45 +31,6 @@ The **post-level Disable Elements** metabox applies `display:none` to GP wrapper
 
 The plugin prevent GeneratePress from using `display:none` to hide theme elements when they are disabled via the post metabox, leaving the PHP hook-based suppression active where available.
 
-## Detection reference
-
-What each condition rule detects and its corresponding `body` class:
-
-| Condition rule | True when | `body` class | GP native class |
-|---|---|---|---|
-| Header Active | Header not disabled | `gp-no-header` (when false) | — |
-| Footer Active | Footer not disabled | `gp-no-footer` (when false) | — |
-| Primary Nav Active | Primary nav not disabled | `gp-no-primary-nav` (when false) | — |
-| Secondary Nav Active | Secondary nav not disabled | `gp-no-secondary-nav` (when false) | — |
-| Top Bar Active | Top bar not disabled | `gp-no-top-bar` (when false) | — |
-| Featured Image Active (post setting) | The per-post **Disable Elements → Featured Image** checkbox is off. Nothing else counts: not a Layout Element's featured-image setting, not the Customizer, not what any element is drawing. Always true off singular pages | `gp-no-featured-image` (when false) | `featured-image-active` (different — render-based) |
-| Featured Image Slot Active (theme) | GeneratePress still has its own featured image wired up for this page. False when a Page Hero has taken it over, when a Layout Element has switched it off, when the Customizer's global image toggle is off, and on every non-singular page. Says nothing about whether a thumbnail exists — or, in one case, about whether an image appears at all (see limitations) | — (deliberately no class) | `featured-image-active` (different — requires a thumbnail) |
-| Content Title Active | The **page** title is not disabled — by the per-post metabox or a Layout Element. Moving the title into a Page Hero does not count as disabling it. Always true off singular pages (see limitations) | `gp-no-content-title` (when false) | — |
-| Left Sidebar Active | Left sidebar renders (layout = left or both) | — | `left-sidebar` |
-| Right Sidebar Active | Right sidebar renders (layout = right or both) | — | `right-sidebar` |
-| No Sidebars Active | Sidebar layout = none | — | `no-sidebar` |
-
-Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds none of its own. Sidebar rules are **membership tests** — "Left Sidebar Active" is true on a both-sidebars page too. To match the both-sidebars layout exactly, combine "Left Sidebar Active" and "Right Sidebar Active" with AND.
-
-## Known limitations
-
-### Not detected
-
-**Turning an element off globally in the Customizer is not detected.** Affects three rules: setting Primary or Secondary Navigation to *No Navigation*, or featured images to off, removes the element from every page while the matching rule still reports it active. The conditions here read the per-page layers — Layout Elements and post settings — which is where the "disable" toggles this plugin exists for actually live. The featured image has a way out on sites running GP Premium's **Blog** module, which is where that Customizer toggle lives: **Featured Image Slot Active (theme)** does see it, because it reports what GeneratePress has wired up rather than what you configured per page. Without that module GeneratePress has no global image toggle to detect, and the slot rule is correspondingly coarser there — see below. There is no equivalent for either nav rule.
-
-**Featured Image Active (post setting) reports the checkbox in the post sidebar, and only that.** A Layout Element's featured-image setting does not turn it off, on any page type. That is deliberate rather than an omission: on real sites that setting is how you *move* the image — a Content Template or Page Hero draws it and GeneratePress' own copy has to be switched off to avoid a duplicate — so reading it would hide the very blocks drawing the image. If you want to switch the image off for a page, use the per-post toggle; that one this plugin reports, and it now removes the image on both of the routes GeneratePress can render it through.
-
-### Out of scope by design
-
-- **Featured Image Active (post setting) means "you have not switched the image off for this post", never "GeneratePress is drawing an image here".** Moving the image into a Content Template or Page Hero counts as moving it, so the condition stays true and blocks inside that template render — that is the point. It is also true on a post with no thumbnail at all, which is what makes a fallback image work: your template renders one, and the condition does not hide it. Ask the other question with **Featured Image Slot Active (theme)** instead — see below.
-- **Featured Image Slot Active (theme) says nothing about pixels either.** It reports that GeneratePress has its own image callbacks wired up for this page, not that an image appears — on a post with no thumbnail it is still true. Use it with `is_not` to keep a block from duplicating GeneratePress' image, or to draw a fallback banner where a Layout Element has genuinely switched the image off and nothing has put one back. It gets no `body` class; the class surface stays where it is.
-- **A Content Template on its own does not make Featured Image Slot Active false — and can make it wrong.** A Content Template replaces the part of the page GeneratePress would have drawn the image into, but it has no *Disable featured image* setting of its own (only a Page Hero does), so GeneratePress' image is still wired up and the rule still reports the slot active. With the image position set to *Below title* or *Inside content* — the two positions whose output lives in the part being replaced — nothing is actually drawn, so the rule says yes where you see nothing. *Above content* is unaffected: it renders outside the template, and you will get it alongside whatever your template draws. This is the one place the rule can hide a block you wanted: if you use it with `is_not` to supply a fallback banner, the banner will not appear. Two ways round it, both one setting: switch the featured image off in a Layout Element covering those pages (which is what a relocation normally does anyway, and the rule reads it correctly), or move the image position to *Above content*.
-- **Featured Image Slot Active (theme) is sharper on some sites than others.** GeneratePress has two ways of drawing the featured image and only one is live per site. With GP Premium's **Blog** module active, the rule is exact: that module only wires its image up when the Customizer toggle is on, and it stands down for a Page Header that has its own content, so the rule follows both. Without the Blog module, the theme's own image callbacks are always registered, so the rule reports the slot active on any singular page unless an element has explicitly switched it off — including where a Page Header is drawing the image instead. The failure direction is the visible one: you may see a duplicate image, rather than a block silently not rendering.
-- **The two featured-image rules are nested, not independent.** Switching the image off with the per-post checkbox removes GeneratePress' own image callbacks, so the slot rule reads false there too. "Post setting off, slot active" cannot happen. Read the slot rule as answering "given you have not switched it off yourself, is GeneratePress drawing one?"
-- **Content Title Active means "the title is not disabled", never "the theme is rendering it in its usual place".** Moving the title into a Page Hero counts as moving it, so the condition stays true and blocks inside the hero render — that is the point. Only the per-post **Disable Elements** metabox and a **Layout Element's** content-title setting turn it off. The trade: a block *outside* the hero wanting to hide itself to avoid a duplicate title has no rule to key on. Put it inside the hero, or gate it with the element's own display conditions.
-- **A Page Hero that disables the title and then doesn't render one** still reports Content Title Active as true. The setting says the title moved; nothing can tell it moved somewhere you left it out.
-- **On archives, Content Title Active describes the heading at the top of the page** — which no GeneratePress setting can disable, so it is always true there. A Layout Element's content-title setting does hide the titles on the loop cards, but those are a different element and this plugin does not report on them. Don't use this rule to gate anything per-card.
-
 ## Design notes
 
 Invariants, signal map, decisions, and terminology: see `docs/` and `CONTEXT.md`.
@@ -83,3 +44,57 @@ Invariants, signal map, decisions, and terminology: see `docs/` and `CONTEXT.md`
 ## License
 
 GPL-2.0-or-later
+
+## Detection reference
+
+What each condition rule detects and its corresponding `body` class.
+
+| Symbol | Meaning |
+|---|---|
+| ● | this location's setting feeds the rule's detection |
+| ○ | a real GeneratePress setting here affects render, but this rule doesn't detect it (accepted gap) |
+| X | a setting exists here but is deliberately excluded — different concept, or relocation rather than disable |
+| — | no such setting exists at this location for this element |
+
+### Theme Sidebar
+
+| Condition rule | Customizer | Layout Element | Post Meta | GP native class |
+|---|:-:|:-:|:-:|---|
+| Left Sidebar Active | ● | ● | ● | `left-sidebar` |
+| Right Sidebar Active | ● | ● | ● | `right-sidebar` |
+| No Sidebars Active | ● | ● | ● | `no-sidebar` |
+
+Sidebar `body` classes are emitted by GeneratePress natively; this plugin adds none of its own. Sidebar rules are **membership tests** — "Left Sidebar Active" is true on a both-sidebars page too. To match the both-sidebars layout exactly, combine "Left Sidebar Active" and "Right Sidebar Active" with AND. Sidebar precedence is GeneratePress' own — Post Meta (the post's own Layout field) overrides Layout Element's sidebar setting, which overrides the Customizer default — not an OR across layers like the other conditions.
+
+### Theme Element Status
+
+| Condition rule | Customizer | Layout Element | Page Hero | Post Meta | `body` class | GP native class |
+|---|:-:|:-:|:-:|:-:|---|---|
+| Header Active | — | ● | — | ● | `gp-no-header` (when false) | — |
+| Footer Active | X | ● | — | ● | `gp-no-footer` (when false) | — |
+| Primary Nav Active | ○[^1] | ● | — | ● | `gp-no-primary-nav` (when false) | — |
+| Secondary Nav Active | ○[^1] | ● | — | ● | `gp-no-secondary-nav` (when false) | — |
+| Top Bar Active | — | ● | — | ● | `gp-no-top-bar` (when false) | — |
+| Featured Image Active (post setting)[^2] | ○[^1] | X[^3] | X[^3] | ●[^4] | `gp-no-featured-image` (when false) | `featured-image-active` (different — render-based) |
+| Featured Image Slot Active (theme)[^5][^6] | ●[^7] | ● | ● | ●[^4] | — (deliberately no class) | `featured-image-active` (different — requires a thumbnail) |
+| Content Title Active[^8] | — | ● | X[^9][^10] | ● | `gp-no-content-title` (when false) | — |
+
+[^1]: Turning an element off globally in the Customizer is not detected. Setting Primary or Secondary Navigation to *No Navigation*, or featured images to off, removes the element from every page while the matching rule still reports it active — the per-page layers this plugin reads (Layout Elements, post settings) are unaffected. Featured Image Slot Active (theme) does see the image case, but only on sites running GP Premium's Blog module — see [^7]. There is no equivalent visibility for either nav rule.
+
+[^2]: Means "you have not switched the image off for this post," never "GeneratePress is drawing an image here." Moving the image into a Content Template or Page Hero counts as moving it, not disabling it, so the condition stays true and blocks inside that template render — that's the point. It's also true on a post with no thumbnail at all, which is what makes a fallback image work. Ask the "is anything actually there" question with Featured Image Slot Active (theme) instead.
+
+[^3]: Deliberately not read, not an omission. On real sites this setting is how you *move* the image — a Content Template or Page Hero draws it and GeneratePress' own copy has to be switched off to avoid a duplicate — so reading it here would hide the very blocks drawing the image. Use the per-post toggle to actually switch the image off; it now removes the image on both routes GeneratePress can render it through.
+
+[^4]: The two Featured Image rows are coupled, not independent. Switching the image off with the per-post checkbox removes GeneratePress' own image callbacks, so the slot rule reads false too — "post setting off, slot active" cannot happen. Read the slot rule as answering "given you haven't switched it off yourself, is GeneratePress drawing one?"
+
+[^5]: Says nothing about pixels either. It reports that GeneratePress has its own image callbacks wired up for this page, not that an image appears — on a post with no thumbnail it's still true. Use it with `is_not` to keep a block from duplicating GeneratePress' image, or to draw a fallback banner where a Layout Element has genuinely switched the image off and nothing has put one back. It gets no `body` class; the class surface stays where it is.
+
+[^6]: A Content Template on its own does not make this false — and can make it wrong. It replaces the part of the page GeneratePress would have drawn the image into, but has no *Disable featured image* setting of its own (only a Page Hero does), so GeneratePress' image stays wired up and the rule still reports the slot active. With the image position set to *Below title* or *Inside content* — the two positions whose output lives in the part being replaced — nothing is actually drawn, so the rule says yes where you see nothing. *Above content* is unaffected: it renders outside the template, alongside whatever the template draws. This is the one place the rule can hide a block you wanted: use it with `is_not` for a fallback banner, and the banner won't appear. Two ways round it, both one setting: switch the featured image off in a Layout Element covering those pages, or move the image position to *Above content*.
+
+[^7]: GeneratePress has two ways of drawing the featured image and only one is live per site. With GP Premium's Blog module active, this cell is exact: the module only wires its image up when the Customizer toggle is on, and stands down for a Page Header with its own content. Without the module, GeneratePress' own image callbacks are always registered, so this rule reports the slot active on any singular page unless an element has explicitly switched it off — including where a Page Header is drawing the image instead. The failure direction is the visible one: a duplicate image, rather than a block silently not rendering.
+
+[^8]: On archives, this rule describes the heading at the top of the page, which no GeneratePress setting can disable, so it's always true there. A Layout Element's content-title setting does hide the titles on loop cards, but those are a different element this rule does not report on. Don't use this rule to gate anything per-card.
+
+[^9]: Moving the title into a Page Hero counts as moving it, not disabling it, so the condition stays true and blocks inside the hero render — that's the point. Only the per-post Disable Elements metabox and a Layout Element's content-title setting turn it off. The trade: a block *outside* the hero wanting to hide itself to avoid a duplicate title has no rule to key on — put it inside the hero, or gate it with the element's own display conditions.
+
+[^10]: A Page Hero that disables the title and then doesn't render one still reports this as true. The setting says the title moved; nothing can tell it moved somewhere you left it out.
