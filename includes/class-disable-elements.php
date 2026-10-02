@@ -141,15 +141,11 @@ function bws_glc_disable_secondary_nav( $has_nav_menu, $location ) {
  *
  * The definition race is winnable only once, at file scope, and only by whoever
  * loads first. The *consumption* of that string is not a race at all. GP prints
- * it from exactly one place — a hook registration, not a file-scope define:
- *
- *     add_action( 'wp_enqueue_scripts', 'generate_de_scripts', 50 );
- *     function generate_de_scripts() {
- *         wp_add_inline_style( 'generate-style', generate_disable_elements() );
- *     }
- *
- * (gp-premium/disable-elements/functions/functions.php:74-82, identical in 2.5.5
- * and 2.5.6.) Removing a registration that already exists has no ordering
+ * it from exactly one place — a hook registration, not a file-scope define: the
+ * generate_de_scripts() callback on wp_enqueue_scripts at priority 50, whose whole
+ * body is one wp_add_inline_style() of generate_disable_elements()'s return value
+ * onto the 'generate-style' handle. (Stamped GP Premium 2.5.5 and 2.5.6, identical
+ * in both; source read recorded in the private bws-reference notes.) Removing a registration that already exists has no ordering
  * problem — any hook before wp_enqueue_scripts works. Verified by forcing the
  * losing load order: GP owned the definition and the CSS was still suppressed.
  *
@@ -157,7 +153,7 @@ function bws_glc_disable_secondary_nav( $has_nav_menu, $location ) {
  * different directions, so keeping both covers both. The neutralize is narrower
  * — it nulls the string while leaving generate_de_scripts free to do whatever GP
  * may add to it later. This removal kills the whole callback. Today that callback
- * is the single wp_add_inline_style call above and nothing else, so the blast
+ * is the single wp_add_inline_style call described above and nothing else, so the blast
  * radius is identical; if GP ever adds to it, the primary still holds and this
  * only runs when the primary has already failed.
  *
