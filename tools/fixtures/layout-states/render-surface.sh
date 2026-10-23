@@ -161,6 +161,14 @@ fetch(){
 # must be proven real BEFORE anything is asserted about it. Hard-abort, not a
 # FAIL: a broken fetch invalidates the whole run, it is not one bad result.
 # ---------------------------------------------------------------------------
+# The featured-image wrapper, matched as a CLASS TOKEN — preceded by `"` or a
+# space — never as a bare substring. The bare string also appears in head CSS:
+# GP Premium's WooCommerce module inlines `.woocommerce .page-header-image-single
+# {display:none}` on any site running WooCommerce, which made every presence
+# check pass and every absence check fail regardless of what rendered. Unquoted
+# at every use, so it is read as a glob pattern rather than a literal.
+IMG_CLASS='[" ]page-header-image'
+
 echo ""
 echo "0. preconditions (site: ${SITE}, domain: ${MAIN})"
 
@@ -197,11 +205,11 @@ esac
 # the theme half, and the plugin's suppression covered only that half and passed
 # green while the toggle did nothing at all on a Blog-module-active site (B8).
 case "${BASELINE}" in
-    *'page-header-image'*) : ;;
+    *${IMG_CLASS}*) : ;;
     *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-states at v2+.' ;;
 esac
 
-case "${BASELINE%%page-header-image*}" in
+case "${BASELINE%%${IMG_CLASS}*}" in
     *'id="content"'*) ok 'baseline featured image renders on the BLOG-module path, inside #content (v6)' ;;
     *) err 'baseline featured image renders OUTSIDE #content — that is the theme page-header path, so the Blog module is inactive or its image position is not inside-content. Section 2 would then exercise half the surface B8 is about, exactly as it did through v5. Activate generate_package_blog and reseed layout-states at v6+.' ;;
 esac
@@ -260,12 +268,12 @@ done
 # a thumbnail, so both passed against pages that render no image under any
 # condition. Checked here rather than trusted, same as the v2 preconditions above.
 case "${SECNAV}" in
-    *'page-header-image'*) ok 'secondary-nav fixture renders a featured image (v3)' ;;
+    *${IMG_CLASS}*) ok 'secondary-nav fixture renders a featured image (v3)' ;;
     *) err 'ls-page-metabox-secondary-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
 esac
 
 case "${NAV}" in
-    *'page-header-image'*) ok 'primary-nav fixture renders a featured image (v3)' ;;
+    *${IMG_CLASS}*) ok 'primary-nav fixture renders a featured image (v3)' ;;
     *) err 'ls-page-metabox-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
 esac
 
@@ -324,7 +332,7 @@ echo "2. V24 — CSS-only vs PHP-removed"
 # page-header actions fails HERE — which is precisely what it did not do while
 # the module was off and the theme path was the only one being tested.
 case "${FEATURED}" in
-    *'page-header-image'*) bad 'featured image markup still present with toggle ON — the PHP suppression did not remove the live path. Section 0 says that path is the Blog module (generate_blog_single_featured_image, three possible hooks); check all three remove_action calls at wp:60, not just the theme page-header pair (B8), and that _generate-disable-post-image is set on this fixture.' ;;
+    *${IMG_CLASS}*) bad 'featured image markup still present with toggle ON — the PHP suppression did not remove the live path. Section 0 says that path is the Blog module (generate_blog_single_featured_image, three possible hooks); check all three remove_action calls at wp:60, not just the theme page-header pair (B8), and that _generate-disable-post-image is set on this fixture.' ;;
     *) ok 'T10/B8: featured image PHP-removed with toggle ON, on the blog-module path (V24 regression closed)' ;;
 esac
 
@@ -387,9 +395,9 @@ esac
 echo ""
 echo "4. control — baseline renders everything"
 
-for marker in 'id="site-navigation"' 'id="secondary-navigation"' 'id="mobile-header"' 'page-header-image' 'entry-header'; do
+for marker in 'id="site-navigation"' 'id="secondary-navigation"' 'id="mobile-header"' "${IMG_CLASS}" 'entry-header'; do
     case "${BASELINE}" in
-        *"${marker}"*) ok "baseline renders ${marker}" ;;
+        *${marker}*) ok "baseline renders ${marker}" ;;
         *) bad "baseline is MISSING ${marker} — the absence assertions above prove nothing if the control does not render it" ;;
     esac
 done
@@ -452,7 +460,7 @@ esac
 # Primary-nav toggle ON: featured image and secondary nav must be untouched.
 # (#site-navigation is legitimately absent here — GP's own PHP path, asserted in 3.)
 case "${NAV}" in
-    *'page-header-image'*) ok 'primary-nav toggle leaves the featured image intact' ;;
+    *${IMG_CLASS}*) ok 'primary-nav toggle leaves the featured image intact' ;;
     *) bad 'featured image is GONE on the primary-nav page — over-suppression.' ;;
 esac
 
@@ -841,7 +849,7 @@ esac
 # The GP-side half. Without it the row above rests on the assumption that the
 # Hero really removed the callbacks; this is the observation.
 case "${HERO}" in
-    *'page-header-image'*) bad 'hero page renders a page-header-image wrapper — the Page Hero did not remove GP'"'"'s five image callbacks, so the slot IS active and the assertion above passed for the wrong reason.' ;;
+    *${IMG_CLASS}*) bad 'hero page renders a page-header-image wrapper — the Page Hero did not remove GP'"'"'s five image callbacks, so the slot IS active and the assertion above passed for the wrong reason.' ;;
     *) ok 'hero page: no page-header-image wrapper — GP genuinely draws nothing here' ;;
 esac
 
@@ -860,7 +868,7 @@ esac
 # leave the slot empty when a Layout Element switches the image off and nothing
 # replaces it. The thumbnail precondition above is what makes this falsifiable.
 case "${KILL}" in
-    *'page-header-image'*) bad 'kill-switch page renders a page-header-image wrapper on a page whose Layout Element disables the featured image. Either the element is not applying (verify.php §8 checks its display condition and its meta key) or GP no longer removes the callbacks at class-layout.php:316-320 — in which case the slot rule'"'"'s premise is wrong, not its code.' ;;
+    *${IMG_CLASS}*) bad 'kill-switch page renders a page-header-image wrapper on a page whose Layout Element disables the featured image. Either the element is not applying (verify.php §8 checks its display condition and its meta key) or GP no longer removes the callbacks at class-layout.php:316-320 — in which case the slot rule'"'"'s premise is wrong, not its code.' ;;
     *) ok 'kill-switch page: GP leaves the featured-image slot EMPTY with nothing drawing in its place (the fixture the slot rule was missing)' ;;
 esac
 
