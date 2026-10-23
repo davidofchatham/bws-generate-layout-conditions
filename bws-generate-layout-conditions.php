@@ -69,6 +69,6 @@ function bws_glc_load_condition() {
 			'bws-generate-layout-conditions'
 		);
 
-		$update_checker->getVcsApi()->enableReleaseAssets();
+		$update_checker->getVcsApi()->enableReleaseAssets( '/bws-generate-layout-conditions-[\d.]+\.zip/', \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS );
 	}
 }
