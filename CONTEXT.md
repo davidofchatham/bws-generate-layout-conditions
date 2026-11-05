@@ -2,7 +2,7 @@
 
 Standalone WordPress plugin that makes GeneratePress disable states (header/footer/nav/etc.) usable by GeneratePress Block Elements — so a Block Element that replaces a theme section respects the same disable settings the native section would.
 
-This file is the **ubiquitous language** — what each term means, what to call it, what to avoid. The permanent *contract* (invariants, bug ledger, signal map) lives in `docs/architecture.md`; *decisions and rationale* in `docs/adr/`; *bugs* as GitHub issues, and *non-bug work* with its ledger of what has landed in `docs/future-work.md`.
+This file is the **ubiquitous language** — what each term means, what to call it, what to avoid. The permanent *contract* (invariants, bug ledger, signal map) lives in `docs/architecture.md`; *decisions and rationale* on the invariant that owns them (two that span several invariants are in `docs/adr/`); *bugs* as GitHub issues, and *non-bug work* with its ledger of what has landed in `docs/future-work.md`.
 
 ## Language
 
@@ -59,12 +59,14 @@ The resolved sidebar enum for the current page — `left-sidebar` | `right-sideb
 
 ## Naming rationale
 
-The two surfaces (body classes, conditions) use opposite polarity **on purpose**. The decision and class-name list are in **ADR-0004**; the language reasons are here:
+The two surfaces (body classes, conditions) use opposite polarity **on purpose**. The decision and class-name list are in V8, V9 and V27; the language reasons are here:
 
 - **Conditions are named by the active/present state** ("Header Active", "Left Sidebar Active") so the common use case — "show this element when the component is showing" — is a positive `Is`, never a double-negative. "Active" is GP's own vocabulary: the native `featured-image-active` class and the editor's "Active Elements" panel both use it to mean "renders on this page."
 - **Body classes are negative** (`gp-no-{component}`) because they mark the *exception* (the disabled state) — the useful CSS hook, since GP emits nothing positive there.
 - **They are not meant to match.** This is the standing answer to "why don't the condition labels and body classes line up?" — they answer different questions (positive render-intent vs negative CSS-exception).
 - **Sidebar rules read as membership, not exclusive** ("Left Sidebar Active" is true on a both-sidebars page too) so "show when the left sidebar is present" works regardless of whether the right one is also present. "Both" is composed via AND; "No Sidebars" (plural) avoids the "No Sidebar Active" negation misread (V26).
+
+*Rejected:* a sidebar or container body class (GP emits them natively); `disable-` rather than `no-` (a command, not a state); a `bws-` prefix in place of `gp-`; one vocabulary for both surfaces (a double-negative condition); reusing GP's `featured-image-active` (render-based, V7).
 
 **GB constraint (language-adjacent):** the operator selector cannot be preselected for custom condition types — the user always picks the operator after the rule. Device-style `is`/`is_not` on a named-state rule keeps that pick trivial.
 
@@ -96,7 +98,7 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 ## Pointers
 
 - **Invariants, bug ledger, signal map, neutralize scope** → `docs/architecture.md`
-- **Decisions + rationale** (hybrid detection, post-meta reads, dependency gating, naming, content-title meaning) → `docs/adr/`
+- **Decisions + rationale** → the invariant that owns it, in `docs/architecture.md` (hybrid detection V1/V2, post-meta reads V3, dependency gating V13, naming V8/V9/V27). Content-title meaning and featured-image intent → `docs/adr/` (ADR-0005, ADR-0006). Older `ADR-NNNN` citations resolve through `docs/adr/README.md`.
 - **Accepted detection gaps** (the Customizer layer, and — since ADR-0005 — Meaning B for the title having no signal at all) → architecture.md V20–V22, V24, V33 + "Accepted gap: Meaning B" + signal map. Secondary nav left this list at V32/T17, and the featured image's three entries left it at ADR-0006 — its relocation ambiguity, its narrow hook read, and its unmodeled metabox path are all closed. Note what closed each: the nav gap was recorded as "no clean hook signal", a statement about one *mechanism* that survived the arrival of another; the image gaps were all consequences of reading a hook at all, and went together the moment it stopped. Re-read what is left with that in mind — the Customizer layer is now the only gap shared by three signals, and it is one theme-mod read, not three
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, ADR-0003
 - **Bugs** → GitHub issues (conventions in `docs/agents/issue-tracker.md`). **Non-bug work, and landed work one line each** → `docs/future-work.md`

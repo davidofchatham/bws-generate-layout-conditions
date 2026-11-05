@@ -29,7 +29,7 @@ A decision lives with the thing it justifies: on the invariant that owns it, or 
 
 ## ADRs
 
-`docs/adr/` holds six ADRs, which are being scored against the bar for retirement. Do not mint a new ADR during ordinary work.
+`docs/adr/` holds two ADRs (0005 and 0006), which cleared the six-rule bar and stay because each spans several invariants. Read them when you touch the content-title or featured-image signals. Do not mint a new ADR during ordinary work. `docs/adr/README.md` owns the bar, the decision-homes table and the map from every older `ADR-NNNN` citation to its new home.
 
 ## Use the glossary's vocabulary
 
