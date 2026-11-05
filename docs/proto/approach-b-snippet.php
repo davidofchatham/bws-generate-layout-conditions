@@ -29,7 +29,7 @@
  *   - Featured Image     (_generate-disable-post-image)     -> remove_action x2
  *   - #mobile-header     (_generate-disable-nav)            -> remove_action (Menu Plus wrapper)
  *
- * Refs: ROADMAP "Approach B"; architecture.md V14/V24/V25; V3 (queried-object id, singular guard).
+ * Refs: docs/future-work.md "Approach B"; architecture.md V14/V24/V25; V3 (queried-object id, singular guard).
  *
  * HOW TO READ RESULTS:
  *   Each suppression emits an HTML comment marker into the page source (View Source / Ctrl-U).
