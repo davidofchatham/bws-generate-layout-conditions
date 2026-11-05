@@ -4,33 +4,41 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root, or
-- **`CONTEXT-MAP.md`** at the repo root if it exists — it points at one `CONTEXT.md` per context. Read each one relevant to the topic.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
+- **`CONTEXT.md`** at the repo root: the glossary.
+- **`docs/architecture.md`**: the architecture home, with the invariants (V ids), signal map and bug ledger.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+If a listed file does not exist, **proceed silently**. Don't flag its absence or suggest creating it upfront.
 
-## File structure
+## Who owns what
 
-Single-context repo (this repo):
+| Concern | Single owner |
+|---|---|
+| Vocabulary | `CONTEXT.md` |
+| Invariants, signal map, bug ledger | `docs/architecture.md` |
+| Per-class enforced invariants | PHPDoc on the enforcing class |
+| Bugs | GitHub Issues |
+| Non-bug work, and the ledger of what has landed | `docs/future-work.md` |
+| Version history | the changelog in `readme.txt` |
+| Finished specs | `docs/design-history/`, created at the first lift |
+| Upstream verification baseline | `tools/probes/README.md` |
+| What tracked files must not hold | `tools/guards/check-tracked-pii.sh` |
 
-```
-/
-├── CONTEXT.md
-├── docs/adr/
-│   ├── 0001-hybrid-disable-state-detection.md
-│   └── 0002-post-meta-reads-use-queried-object-on-singular.md
-└── includes/
-```
+## Where a decision lives
+
+A decision lives with the thing it justifies: on the invariant that owns it, or on the glossary entry for a term. Cite that anchor, never a spec coordinate.
+
+## ADRs
+
+`docs/adr/` holds six ADRs, which are being scored against the bar for retirement. Do not mint a new ADR during ordinary work.
 
 ## Use the glossary's vocabulary
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
 
-If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
-## Flag ADR conflicts
+## Flag conflicts
 
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
+If your output contradicts an invariant or a glossary entry, say so explicitly rather than silently overriding it. Check the anchor's **Rejected** list or the entry's `Rejected:` line first: proposing a listed alternative needs an argument against the reason it lost, not a restatement.
 
-> _Contradicts ADR-0007 (event-sourced orders) — but worth reopening because…_
+> _Contradicts V9 (vocabulary diverges on purpose), but worth reopening because…_
