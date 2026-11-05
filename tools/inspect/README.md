@@ -19,7 +19,7 @@ reimplementation of them.
 
 ```bash
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/inspect/state-map.php id 1234
-bin/wp.sh <site> eval-file .../state-map.php page 74082
+bin/wp.sh <site> eval-file .../state-map.php page 456
 bin/wp.sh <site> eval-file .../state-map.php cat 75
 bin/wp.sh <site> eval-file .../state-map.php term site-section 1378
 bin/wp.sh <site> eval-file .../state-map.php home
@@ -32,8 +32,8 @@ bin/wp.sh <site> eval-file .../state-map.php home
 Loop in the shell, never in PHP:
 
 ```bash
-for a in "post 78063" "page 74082" "cat 75"; do
-    bin/wp.sh Site H eval-file .../state-map.php $a
+for a in "post 123" "page 456" "cat 7"; do
+    bin/wp.sh <site> eval-file .../state-map.php $a
 done
 ```
 

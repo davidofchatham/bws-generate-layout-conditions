@@ -98,7 +98,7 @@ return array(
 		// it OFF, so every featured-image assertion in this blueprint was
 		// exercising the theme path only, and the plugin's suppression could
 		// cover half the surface and still pass green (B8). Pinned ON because
-		// that is the deployed shape (measured on `Site H`, V33) and the
+		// that is the deployed shape (measured on Site H, V33) and the
 		// harder of the two — with it on, the theme path is provably dead, so
 		// any image that renders is the blog path.
 		'generate_package_blog',
