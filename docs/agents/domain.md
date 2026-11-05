@@ -29,7 +29,7 @@ A decision lives with the thing it justifies: on the invariant that owns it, or 
 
 ## ADRs
 
-`docs/adr/` holds two ADRs (0005 and 0006), which cleared the six-rule bar and stay because each spans several invariants. Read them when you touch the content-title or featured-image signals. Do not mint a new ADR during ordinary work. `docs/adr/README.md` owns the bar, the decision-homes table and the map from every older `ADR-NNNN` citation to its new home.
+There is no `docs/adr/` to read, and **do not mint one as part of ordinary work.** A rejected alternative goes on the invariant's **Rejected** list or the glossary entry's `Rejected:` line. `docs/adr/README.md` owns the decision-homes table and maps every old `ADR-NNNN` citation to its new home.
 
 ## Use the glossary's vocabulary
 

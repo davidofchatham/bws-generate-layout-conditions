@@ -153,7 +153,7 @@ return array(
 	// -----------------------------------------------------------------------
 	'conditions' => array(
 
-		// The per-post Disable Elements toggle (ADR-0006). The author-facing
+		// The per-post Disable Elements toggle (V21). The author-facing
 		// question: "has the editor switched the featured image off for this post?"
 		'ls-cond-image-active' => array(
 			'post_title' => 'LS: Featured Image Active (post setting)',
@@ -231,7 +231,7 @@ return array(
 		// (class-block.php:169-190 — keyed on the RESOLVED HOOK NAME, with no
 		// opt-out meta). So `! has_action(...)` reads "disabled" on every page
 		// carrying the element, whether or not anything is disabled. That is
-		// the poisoned signal V2/ADR-0001 exists to route around, and these
+		// the poisoned signal V2 exists to route around, and these
 		// two fixtures are what make it reproducible.
 		//
 		// Deliberately NO disable meta and a site-wide display condition: any
@@ -327,7 +327,7 @@ return array(
 		//
 		// SEPARATE from ls-el-layout-featured-archive, deliberately. That one is a
 		// regression guard on an ARCHIVE, where the post-setting rule short-circuits
-		// before reading anything (ADR-0006) and the slot rule is a constant false.
+		// before reading anything (V21) and the slot rule is a constant false.
 		// Here both rules are live and must DISAGREE — post setting active, slot
 		// not — which is the combination the whole ticket is about, and it needs a
 		// singular target and a page of its own.
@@ -526,8 +526,8 @@ return array(
 		// EMBEDS the image/title itself, so it removes the same hooks the
 		// Detector used to read, and v1 reported both as "disabled" while both
 		// were visibly active via the Hero. The fixture existed to CHARACTERIZE
-		// that. Both meanings are now resolved — title by ADR-0005, image by
-		// ADR-0006 — and neither signal reads a hook, so this is a REGRESSION
+		// that. Both meanings are now resolved — title and image by
+		// V21 — and neither signal reads a hook, so this is a REGRESSION
 		// GUARD for both halves: `gp-no-content-title` and `gp-no-featured-image`
 		// must both be ABSENT on ls-page-hero. render-surface.sh §8 asserts the
 		// image half on rendered output.

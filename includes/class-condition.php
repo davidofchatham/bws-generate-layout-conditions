@@ -136,7 +136,7 @@ class BWS_GP_Theme_Element_Condition extends BWS_GP_No_Value_Condition {
 		 * opposite of the truth while the state map stayed correct — a mistake no
 		 * Detector test can see.
 		 *
-		 * No body class, deliberately (V8/ADR-0004): a third featured-image-related
+		 * No body class, deliberately (V8): a third featured-image-related
 		 * class on one body element — the existing negative `gp-no-featured-image`,
 		 * GP's own render-based `featured-image-active`, plus one more — is a
 		 * confusion hazard, and class names are permanent public surface once

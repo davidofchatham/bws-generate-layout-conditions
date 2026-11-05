@@ -3,7 +3,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Condition tests — persisted surface (V27 slugs, ADR-0004 names) and
+ * Condition tests — persisted surface (V27 slugs, V8 names) and
  * evaluate() semantics (V7 active-polarity, V10 operator, V26 membership),
  * driven through the fake environment.
  */
@@ -24,7 +24,7 @@ class ConditionTest extends TestCase {
 			// render paths (issue #4). Deliberately the `inside-content` position
 			// and NOT `generate_after_entry_header|generate_blog_single_featured_image`
 			// — that pair is the one the featured_image *signal* probed before
-			// ADR-0006, so a Detector reverted to reading it for that signal still
+			// V21, so a Detector reverted to reading it for that signal still
 			// fails test_active_rules_true_when_nothing_disabled_v7 here. It is also
 			// the position the render harness pins (render-surface.sh §0).
 			'generate_before_content|generate_blog_single_featured_image',
@@ -38,7 +38,7 @@ class ConditionTest extends TestCase {
 		BWS_GP_Layout_Detector::reset_cache();
 	}
 
-	// --- Persisted names: byte-exact regression guard (V27, ADR-0004) ------
+	// --- Persisted names: byte-exact regression guard (V27, V8) ------
 
 	public function test_element_rule_slugs_and_labels_are_frozen_v27(): void {
 		$this->assertSame(
@@ -48,7 +48,7 @@ class ConditionTest extends TestCase {
 				'primary_nav_active'         => 'Primary Nav Active',
 				'secondary_nav_active'       => 'Secondary Nav Active',
 				'top_bar_active'             => 'Top Bar Active',
-				// Qualified label (ADR-0006). The SLUG is frozen (V27); the label is
+				// Qualified label (V21). The SLUG is frozen (V27); the label is
 				// not persisted, and the qualifier earns its place beside the sibling
 				// slot rule this signal now sits next to.
 				'featured_image_active'      => 'Featured Image Active (post setting)',

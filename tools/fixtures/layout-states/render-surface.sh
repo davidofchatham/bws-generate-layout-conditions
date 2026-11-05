@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # layout-states — render-level test harness (T11 + T10 + T15/T16 + T17/T18 +
-# ADR-0006 / V14, V24, V25, V31, V32).
+# V21 / V14, V24, V25, V31, V32).
 #
 # Asserts on RENDERED HTML. Everything else in this blueprint runs under wp-cli,
 # and for these invariants wp-cli is structurally blind:
@@ -58,7 +58,7 @@
 #   * Section 7 (T17) is neither characterization nor inversion — it is the first
 #     section covering a layer that had NO signal at all before it, so both its
 #     positive assertions were red for the whole life of the plugin until T17.
-#   * Section 8 (ADR-0006) is a second inversion pass, on the featured image. The
+#   * Section 8 (V21) is a second inversion pass, on the featured image. The
 #     hero page and the archive both used to emit gp-no-featured-image and must
 #     not now — and so, on this testbed, did the baseline, which is V33 showing
 #     up in the harness rather than a fixture quirk. See the section header.
@@ -470,7 +470,7 @@ case "${NAV}" in
 esac
 
 # ---------------------------------------------------------------------------
-# 6. V31 / ADR-0005 — content title reports the PAGE-TITLE role.
+# 6. V31 — content title reports the PAGE-TITLE role.
 #
 # The one claim the PHPUnit fake structurally cannot test. The fake can encode
 # the belief that GP leaves the archive HEADING standing when a Layout Element
@@ -484,7 +484,7 @@ esac
 # (generate_archive_title, archive.php:34). So one element produces both halves:
 # item titles gone, heading intact.
 #
-# The gp-no-content-title assertion is INVERTED relative to pre-ADR-0005
+# The gp-no-content-title assertion is INVERTED relative to pre-closure
 # behaviour, exactly like the T10 rows above: hook-state saw that __return_false
 # and emitted the class on this archive. It must now be absent.
 #
@@ -530,8 +530,8 @@ case "${ARCHIVE}" in
 esac
 
 case "${ARCHIVE}" in
-    *'gp-no-content-title'*) bad 'gp-no-content-title still emitted on the archive — the Detector is reading item-title suppression as a page-title disable. This is the pre-ADR-0005 behaviour; the off-singular short-circuit did not run.' ;;
-    *) ok 'ADR-0005: no gp-no-content-title on the archive (item-title suppression is not a page-title disable)' ;;
+    *'gp-no-content-title'*) bad 'gp-no-content-title still emitted on the archive — the Detector is reading item-title suppression as a page-title disable. This is the pre-closure behaviour; the off-singular short-circuit did not run.' ;;
+    *) ok 'V21: no gp-no-content-title on the archive (item-title suppression is not a page-title disable)' ;;
 esac
 
 # Control for the two absence checks above. Without it, a Detector that never
@@ -616,7 +616,7 @@ case "${SECNAV}" in
 esac
 
 # ---------------------------------------------------------------------------
-# 8. ADR-0006 — Featured Image Active reports the POST SETTING, nothing else.
+# 8. V21 — Featured Image Active reports the POST SETTING, nothing else.
 #
 # A fourth era, and the second inversion pass. Sections 6 and 7 assert the
 # Detector's output for the title and secondary-nav signals; this one does the
@@ -624,7 +624,7 @@ esac
 # Layout Element key.
 #
 # The two inverted assertions are the hero page and the archive. Under the
-# pre-ADR-0006 rule:
+# pre-closure rule:
 #
 #   * ls-page-hero carries a Page Hero Block Element with "Disable featured
 #     image" — a RELOCATION. The Hero draws the image itself and removes GP's
@@ -637,7 +637,7 @@ esac
 # Both must now be ABSENT. Neither source is read on any page type.
 #
 # Worth naming because it is easy to misread as an over-broad control: on this
-# testbed the pre-ADR-0006 rule emitted gp-no-featured-image on the BASELINE too.
+# testbed the pre-closure rule emitted gp-no-featured-image on the BASELINE too.
 # Section 0 pins the blog image position to `inside-content`, so GP's callback
 # sits on `generate_before_content` while the old rule probed
 # `generate_after_entry_header` — absent everywhere, on every singular page,
@@ -647,7 +647,7 @@ esac
 # configured at all.
 # ---------------------------------------------------------------------------
 echo ""
-echo "8. ADR-0006 — featured image = the per-post toggle, on every page type"
+echo "8. V21 — featured image = the per-post toggle, on every page type"
 
 HERO=$(fetch 'ls-page-hero' || true)
 
@@ -669,8 +669,8 @@ case "${HERO}" in
 esac
 
 case "${HERO}" in
-    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the Page Hero page — a relocation is being read as a disable. This is the pre-ADR-0006 hook-state behaviour: the Hero removes GP'"'"'s image callback because it draws the image itself, and the rule must not read that hook on any page type.' ;;
-    *) ok 'ADR-0006: no gp-no-featured-image under a Page Hero relocation (inverted — hook-state emitted it here)' ;;
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the Page Hero page — a relocation is being read as a disable. This is the pre-closure hook-state behaviour: the Hero removes GP'"'"'s image callback because it draws the image itself, and the rule must not read that hook on any page type.' ;;
+    *) ok 'V21: no gp-no-featured-image under a Page Hero relocation (inverted — hook-state emitted it here)' ;;
 esac
 
 # Liveness for THIS one is proven in a different suite, deliberately: `verify.php`
@@ -682,8 +682,8 @@ esac
 # §6 check exists at all — that fixture matched no request for three blueprint
 # versions.
 case "${ARCHIVE}" in
-    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on /department/sales/ — the non-singular Layout Element replay is still running. ADR-0006 removes it: off singular the rule is a constant, because its only source is the per-post metabox and that layer cannot apply to an archive.' ;;
-    *) ok 'ADR-0006: no gp-no-featured-image on the archive (inverted — the V22/T8 replay branch emitted it)' ;;
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on /department/sales/ — the non-singular Layout Element replay is still running. V21 removes it: off singular the rule is a constant, because its only source is the per-post metabox and that layer cannot apply to an archive.' ;;
+    *) ok 'V21: no gp-no-featured-image on the archive (inverted — the V22/T8 replay branch emitted it)' ;;
 esac
 
 # Controls. The first is the ONLY thing that can still emit this class, so
@@ -697,7 +697,7 @@ case "${FEATURED}" in
 esac
 
 case "${BASELINE}" in
-    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the baseline, where nothing is disabled. Pre-ADR-0006 this was the SHIPPED behaviour on a default install (V33): the probed hook is only used at the `below-title` image position, and section 0 pins this site to `inside-content`. A hook-state read lands here.' ;;
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the baseline, where nothing is disabled. Pre-closure this was the SHIPPED behaviour on a default install (V33): the probed hook is only used at the `below-title` image position, and section 0 pins this site to `inside-content`. A hook-state read lands here.' ;;
     *) ok 'control: no gp-no-featured-image on the baseline (inverted — the hook-state read emitted it on every singular page here)' ;;
 esac
 
@@ -837,8 +837,8 @@ esac
 
 # --- Row 3: Page Hero relocation. The two rules come apart. -----------------
 case "${HERO}" in
-    *'ls-marker-image-active'*) ok 'hero page: featured_image_active block RENDERS — a relocation is not a disable (ADR-0006)' ;;
-    *) bad 'hero page: the featured_image_active block is hidden under a Page Hero. The rule is reading the relocation as a disable, which is the pre-ADR-0006 hook-state behaviour one layer out — a block that should render is being conditioned away.' ;;
+    *'ls-marker-image-active'*) ok 'hero page: featured_image_active block RENDERS — a relocation is not a disable (V21)' ;;
+    *) bad 'hero page: the featured_image_active block is hidden under a Page Hero. The rule is reading the relocation as a disable, which is the pre-closure hook-state behaviour one layer out — a block that should render is being conditioned away.' ;;
 esac
 
 case "${HERO}" in
@@ -855,8 +855,8 @@ esac
 
 # --- Row 4: the kill switch. The case nothing covered. ----------------------
 case "${KILL}" in
-    *'ls-marker-image-active'*) ok 'kill-switch page: featured_image_active block RENDERS — the Layout Element key is not read as a post-level disable (ADR-0006)' ;;
-    *) bad 'kill-switch page: the featured_image_active block is hidden. The rule is reading _generate_disable_featured_image from a Layout Element, which ADR-0006 removed: that key is a relocation mechanism, so reading it conditions blocks away on pages whose author never switched anything off.' ;;
+    *'ls-marker-image-active'*) ok 'kill-switch page: featured_image_active block RENDERS — the Layout Element key is not read as a post-level disable (V21)' ;;
+    *) bad 'kill-switch page: the featured_image_active block is hidden. The rule is reading _generate_disable_featured_image from a Layout Element, which V21 removed: that key is a relocation mechanism, so reading it conditions blocks away on pages whose author never switched anything off.' ;;
 esac
 
 case "${KILL}" in
@@ -872,18 +872,18 @@ case "${KILL}" in
     *) ok 'kill-switch page: GP leaves the featured-image slot EMPTY with nothing drawing in its place (the fixture the slot rule was missing)' ;;
 esac
 
-# ADR-0006 regression guard on a SINGULAR page. Section 8 asserts the Layout
+# V21 regression guard on a SINGULAR page. Section 8 asserts the Layout
 # Element key is not read on an archive; this is the same claim where the rule
 # does not short-circuit, so it is the stronger of the two.
 case "${KILL}" in
-    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the kill-switch page — the featured-image signal is reading the Layout Element key on a singular page. ADR-0006 removed that read entirely: the key marks a relocation, and nothing on this page sets the per-post toggle.' ;;
-    *) ok 'ADR-0006: no gp-no-featured-image under a Layout Element kill switch (singular — the case section 8 can only test off-singular)' ;;
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on the kill-switch page — the featured-image signal is reading the Layout Element key on a singular page. V21 removed that read entirely: the key marks a relocation, and nothing on this page sets the per-post toggle.' ;;
+    *) ok 'V21: no gp-no-featured-image under a Layout Element kill switch (singular — the case section 8 can only test off-singular)' ;;
 esac
 
 # --- Row 5: the archive. Off singular the slot is a constant false. ---------
 case "${ARCHIVE}" in
-    *'ls-marker-image-active'*) ok 'archive: featured_image_active block RENDERS — the post-setting rule is a constant true off singular (ADR-0006)' ;;
-    *) bad 'archive: the featured_image_active block is hidden on /department/sales/. The per-post metabox layer cannot apply off singular (ADR-0002), so the rule must report active there; this is the reversed V22/T8 replay branch coming back.' ;;
+    *'ls-marker-image-active'*) ok 'archive: featured_image_active block RENDERS — the post-setting rule is a constant true off singular (V21)' ;;
+    *) bad 'archive: the featured_image_active block is hidden on /department/sales/. The per-post metabox layer cannot apply off singular (V3), so the rule must report active there; this is the reversed V22/T8 replay branch coming back.' ;;
 esac
 
 case "${ARCHIVE}" in
