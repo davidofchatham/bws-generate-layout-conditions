@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Repo-side pre-push: the earlier net than CI for committed-content leaks.
+#
+# 1. Re-runs the tree guard, which catches a commit made with --no-verify.
+# 2. Scans the message of every commit this push would publish for a client name
+#    from CLIENT_TERMS (the guard's rule 4 does not see commit messages).
+#
+# Same matching as rule 4: case-insensitive, a non-alphanumeric (or line edge) on
+# both sides. Prints the short SHA only, never the matched text. Unset terms skip
+# with a notice; an invalid pattern exits 2. Branch deletes are skipped.
+#
+# Install: cp tools/guards/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# Then verify it is the file git will run: git rev-parse --git-path hooks/pre-push
+# (a global core.hooksPath replaces .git/hooks, and the hook silently never runs).
+# CLIENT_TERMS must be in the environment of the push; see
+# practices/committed-content-guards.md for where the list lives.
+#
+# git passes <remote> <url> as arguments and, on stdin, one line per ref:
+# <local ref> <local sha> <remote ref> <remote sha>.
+
+refs=$(cat)
+cd "$(git rev-parse --show-toplevel)" || exit 2
+
+bash tools/guards/check-tracked-pii.sh || exit $?
+
+if [ -z "${CLIENT_TERMS:-}" ]; then
+	echo "::notice::CLIENT_TERMS unset: commit-message scan skipped."
+	exit 0
+fi
+
+pat="(^|[^[:alnum:]])($CLIENT_TERMS)([^[:alnum:]]|\$)"
+echo x | grep -E "$pat" > /dev/null 2>&1
+[ "$?" -gt 1 ] && { echo "::error::CLIENT_TERMS is not a valid extended regex."; exit 2; }
+
+fail=0
+# Skip all-zero shas: a branch delete publishes no commits.
+for sha in $(printf '%s\n' "$refs" | awk '$2 !~ /^0+$/ { print $2 }'); do
+	# Commits not yet on any remote: what this push would publish.
+	for c in $(git rev-list "$sha" --not --remotes); do
+		if git log -1 --format=%B "$c" | grep -qiE "$pat"; then
+			echo "pre-push: client term in the message of commit $(git rev-parse --short "$c") (text withheld)." >&2
+			fail=1
+		fi
+	done
+done
+
+[ "$fail" -ne 0 ] && echo "Reword the commit (git commit --amend, or a rebase) and push again." >&2
+exit "$fail"

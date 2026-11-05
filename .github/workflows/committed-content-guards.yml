@@ -1,0 +1,40 @@
+name: Committed-content guards
+
+# Tracked prose accretes. Visibility is a setting: a private repo that flips public
+# publishes every past commit at once, a public repo already has, and history cannot
+# be un-leaked by a later delete. Catch it while it is still one revert away. The
+# scripts are copy-in templates (tools/guards/); this workflow is the copy-in wiring
+# for them.
+#
+# This runs AFTER the push, so a name on a pushed branch of a public repo is already
+# public; a local pre-push run of the same script is the earlier net.
+#
+# CLIENT_TERMS (optional repository secret): extended-regex alternation of client
+# names, never committed. Secrets are not passed to workflows triggered from a fork,
+# so there the client-name rule skips and the log says so.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for PII
+        env:
+          CLIENT_TERMS: ${{ secrets.CLIENT_TERMS }}
+        run: bash tools/guards/check-tracked-pii.sh
+
+      # A committed file citing .scratch/ resolves for one person and fails
+      # silently for everyone else. See docs/agents/issue-tracker.md.
+      - name: No committed file cites a private path
+        run: bash tools/guards/check-private-citations.sh
+
+      # Seeds a violation per guard in a throwaway repo and requires red, then
+      # requires green on a clean tree.
+      - name: Self-test -- guards must fail on seeded violations
+        run: bash tools/guards/self-test-guards.sh
