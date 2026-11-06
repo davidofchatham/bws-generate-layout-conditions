@@ -10,8 +10,8 @@
  *
  * Usage (one page per invocation — see the warning below):
  *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/inspect/state-map.php id 1234
- *   bin/wp.sh <site> eval-file .../state-map.php page 74082
- *   bin/wp.sh <site> eval-file .../state-map.php post 78063
+ *   bin/wp.sh <site> eval-file .../state-map.php page 456
+ *   bin/wp.sh <site> eval-file .../state-map.php post 123
  *   bin/wp.sh <site> eval-file .../state-map.php cat 75
  *   bin/wp.sh <site> eval-file .../state-map.php term site-section 1378
  *   bin/wp.sh <site> eval-file .../state-map.php home
@@ -32,7 +32,7 @@
  *      previous page's answer, with nothing to indicate it.
  *
  * Loop in the shell, not in PHP:
- *   for a in "post 78063" "page 74082"; do bin/wp.sh site eval-file .../state-map.php $a; done
+ *   for a in "post 123" "page 456"; do bin/wp.sh <site> eval-file .../state-map.php $a; done
  *
  * ---------------------------------------------------------------------------
  * WHAT IT CANNOT TELL YOU. Every rule here reports CONFIGURATION, never render

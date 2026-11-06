@@ -392,7 +392,7 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 // module state was never pinned here, and testbed had it OFF — so every
 // featured-image assertion in this blueprint ran against the theme path alone,
 // and a suppression covering only that path passed green while doing nothing on
-// a Blog-module-active site. That is B8, and it was live on `Site H`.
+// a Blog-module-active site. That is B8, and it was live on Site H.
 //
 // Checked here rather than only in the render harness because the harness reads
 // the CONSEQUENCE (where the image lands in the body) and this reads the CAUSE.

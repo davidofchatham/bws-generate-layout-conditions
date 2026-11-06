@@ -1,37 +1,22 @@
 # tools/probes
 
-Read-only checks against the **upstream** surface — GB Pro and GP Premium — as
-opposed to `tools/fixtures/`, which checks this plugin against seeded content.
+Read-only checks against the **upstream** surface — GB Pro and GP Premium — as opposed to `tools/fixtures/`, which checks this plugin against seeded content.
 
-Neither file here writes anything, registers anything, or mutates global state.
-They can run in any order, before or after any fixture suite.
+Neither file here writes anything, registers anything, or mutates global state. They can run in any order, before or after any fixture suite.
 
 ## The two files
 
-`registry-shape.php` **reports**. It dumps the upstream shape — registry methods
-and properties, `show_data()`'s signature, which classes are present — with no
-expectations at all. For exploring a new GB/GP version, or answering "what does
-this actually look like now", by hand.
+`registry-shape.php` **reports**. It dumps the upstream shape — registry methods and properties, `show_data()`'s signature, which classes are present — with no expectations at all. For exploring a new GB/GP version, or answering "what does this actually look like now", by hand.
 
-`upstream-surface.php` **asserts** (T14). Same territory, but pinned to a
-recorded expectation and exiting non-zero on drift. This is the guard;
-registry-shape is the microscope.
+`upstream-surface.php` **asserts** (T14). Same territory, but pinned to a recorded expectation and exiting non-zero on drift. This is the guard; registry-shape is the microscope.
 
-Both exist on purpose. A report cannot fail a build, and an assertion tells you
-only that something moved, not what the new shape is — when the canary fails,
-`registry-shape.php` is the natural next command.
+Both exist on purpose. A report cannot fail a build, and an assertion tells you only that something moved, not what the new shape is — when the canary fails, `registry-shape.php` is the natural next command.
 
 ## Why the canary exists
 
-This testbed tracks GB/GP **betas** — it is a lookahead environment, not a
-production mirror. Upstream moves under it without warning. The baseline every
-suite has been run against is recorded in `docs/ROADMAP.md`.
+This testbed tracks GB/GP **betas** — it is a lookahead environment, not a production mirror. Upstream moves under it without warning. The baseline every suite has been run against is recorded under [Verification baseline](#verification-baseline).
 
-The failure mode that motivated it: `GenerateBlocks_Pro_Conditions_Registry::register()`
-validates that the class implements `GenerateBlocks_Pro_Condition_Interface` and,
-if it does not, **returns `false`**. No exception, no notice, no log line. Add a
-method to that interface upstream and both of this plugin's conditions simply
-stop appearing in the GB Pro UI, with nothing anywhere saying why.
+The failure mode that motivated it: `GenerateBlocks_Pro_Conditions_Registry::register()` validates that the class implements `GenerateBlocks_Pro_Condition_Interface` and, if it does not, **returns `false`**. No exception, no notice, no log line. Add a method to that interface upstream and both of this plugin's conditions simply stop appearing in the GB Pro UI, with nothing anywhere saying why.
 
 That class of change — silent, upstream, total — is what this file is for.
 
@@ -47,17 +32,14 @@ That class of change — silent, upstream, total — is what this file is for.
 
 ## When it fails
 
-**Do not edit the expectation to match.** That converts a working alarm into a
-comment.
+**Do not edit the expectation to match.** That converts a working alarm into a comment.
 
 1. Run `registry-shape.php` to see the new shape.
 2. Diff the upstream source for the moved symbol.
 3. Decide whether the plugin must adapt, and fix the plugin.
 4. Only then update the expectation here — recording the version that changed it.
 
-Mutation-checked: three simulated drifts (reordered `register()` params, an added
-interface method, a slug that never registered) each failed in their own section
-with a message naming the cause.
+Mutation-checked: three simulated drifts (reordered `register()` params, an added interface method, a slug that never registered) each failed in their own section with a message naming the cause.
 
 ## Running
 
@@ -66,11 +48,12 @@ bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/probes/
 bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/probes/registry-shape.php
 ```
 
-`seed-all.sh` runs `upstream-surface.php` automatically, once per plugin, **before**
-any blueprint. Order is deliberate: when upstream breaks the surface, the
-blueprint suites fail too — but with local-looking messages. Seeing the canary
-fail first names the real cause before anything downstream can mislead.
+`seed-all.sh` runs `upstream-surface.php` automatically, once per plugin, **before** any blueprint. Order is deliberate: when upstream breaks the surface, the blueprint suites fail too — but with local-looking messages. Seeing the canary fail first names the real cause before anything downstream can mislead.
 
-Preconditions: GB Pro and GP Premium active with the Elements module on. Absent
-upstream is a broken environment, not drift, so the file hard-errors there rather
-than reporting a wall of false failures.
+Preconditions: GB Pro and GP Premium active with the Elements module on. Absent upstream is a broken environment, not drift, so the file hard-errors there rather than reporting a wall of false failures.
+
+## Verification baseline
+
+T12–T14 and everything after were run against **GB Pro 2.7.0-beta.1 / GP Premium 2.5.6**. **Revalidated 2026-10-23 against GB Pro 2.8.0 / GB 2.5.0 / GP Premium 2.5.6 / GP 3.6.1**: every suite green (canary 59, verify 67, seam 28, poisoned 20, render 67, unit 58). The condition files the plugin binds to changed only in whitespace from 2.7.1, whose sole conditions change was the REST controller; `block-conditions.php` is unchanged. The render harness needed one fix, unrelated to GB: WooCommerce on testbed makes GP Premium inline `.woocommerce .page-header-image-single` CSS in `<head>`, which the bare-substring image match read as markup, so the match is now a class token. The testbed tracks GB/GP betas deliberately — it is a lookahead environment, not a production mirror, which is what the T14 drift canary exists for.
+
+Operational lessons from T11/T21 that belong to no invariant — opcache staleness, one page per process, running against a real clone — are in [`tools/fixtures/layout-states/README.md`](../fixtures/layout-states/README.md) and [`tools/inspect/README.md`](../inspect/README.md).

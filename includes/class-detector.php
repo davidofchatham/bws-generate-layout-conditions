@@ -8,8 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Hybrid detection. Config-replay for header, footer and content title (whose hook
  * signals are poisoned by elements that take over the hook for their own reasons —
- * ADR-0001, ADR-0005) and for secondary nav (which has no readable hook signal at
- * all — V32). The featured image reads the per-post metabox alone (ADR-0006).
+ * V2, V21) and for secondary nav (which has no readable hook signal at
+ * all — V32). The featured image reads the per-post metabox alone (V21).
  * Hook-state survives for primary nav and top bar only — the replay list has only
  * ever grown, so treat those two as provisional (V32, V33).
  *
@@ -58,7 +58,7 @@ class BWS_GP_Layout_Detector {
 	 * - body-class emitter             → 'class'
 	 *
 	 * 'rule' slugs are persisted in saved condition data (V27) and 'class' names are
-	 * public CSS surface (ADR-0004) — both must stay byte-identical across releases.
+	 * public CSS surface (V8) — both must stay byte-identical across releases.
 	 * Positive labels vs negative classes diverge on purpose (V9): both vocabularies
 	 * are stored here side by side, never derived from one another.
 	 *
@@ -101,7 +101,7 @@ class BWS_GP_Layout_Detector {
 				'class'  => 'gp-no-top-bar',
 			),
 			'featured_image' => array(
-				// The per-post metabox layer only, on every page type (ADR-0006).
+				// The per-post metabox layer only, on every page type (V21).
 				// Config-based NOT render-based (V7) — see is_featured_image_disabled().
 				'method' => 'is_featured_image_disabled',
 				'rule'   => 'featured_image_active',
@@ -158,11 +158,11 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
-	// Header — config-replay (hook signal poisoned by Block Element, ADR-0001)
+	// Header — config-replay (hook signal poisoned by Block Element, V2)
 	// -----------------------------------------------------------------------
 
 	private static function is_header_disabled() {
-		// Post-meta branch (singular only, ADR-0002).
+		// Post-meta branch (singular only, V3).
 		if ( self::post_metabox_disables( '_generate-disable-header' ) ) {
 			return true;
 		}
@@ -184,21 +184,21 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
-	// Content title — config-replay of the PAGE-TITLE role (V30, V31, ADR-0005)
+	// Content title — config-replay of the PAGE-TITLE role (V30, V31, V21)
 	//
 	// Same poisoning as header/footer, same fix: `generate_show_title` carries a
 	// __return_false from any element that RELOCATES the title (Page Hero Block,
 	// legacy Page Hero, the deprecated Page Header module), so hook-state cannot
 	// tell "moved" from "removed". Those writers are not detected, not
 	// compensated for, and not read — the signal is derived from the only two
-	// genuine-disable sources instead (ADR-0005 Meaning A).
+	// genuine-disable sources instead (V21 Meaning A).
 	// -----------------------------------------------------------------------
 
 	private static function is_content_title_disabled() {
 		// Off singular NO writer targets the page-title role (V31): the archive
 		// heading is a different hook (generate_archive_title), the Layout Element
 		// toggle reaches only the item titles inside loop cards, and the metabox
-		// layer cannot apply to an archive (ADR-0002). Uniformly correct for
+		// layer cannot apply to an archive (V3). Uniformly correct for
 		// archives, search, 404 and the blog posts page — not an archive special
 		// case. Explicit because layout_element_disables() has no singular gate of
 		// its own (post_metabox_disables() does).
@@ -232,7 +232,7 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
-	// Featured image — the per-post metabox, and nothing else (ADR-0006)
+	// Featured image — the per-post metabox, and nothing else (V21)
 	//
 	// One source, one meaning on every page type. The rule answers "has the
 	// editor switched the featured image off for this post?", which is the
@@ -248,7 +248,7 @@ class BWS_GP_Layout_Detector {
 	//     absent whenever a Page Hero drew the image itself, which is a move,
 	//     not a removal (V21).
 	//   * NOT the Layout Element key. This is where the signal diverges from
-	//     content title, which DOES replay its element key (ADR-0005), and the
+	//     content title, which DOES replay its element key (V21), and the
 	//     divergence is evidence-backed rather than habitual: the image is drawn
 	//     from hooks outside the template part, so a template that renders its
 	//     own must suppress GP's explicitly, and a Layout Element is the only
@@ -256,7 +256,7 @@ class BWS_GP_Layout_Detector {
 	//     relocation intent by construction. Reading it reports "disabled" on
 	//     pages that visibly show an image.
 	//
-	// Off singular the metabox layer cannot apply (ADR-0002), so the signal is a
+	// Off singular the metabox layer cannot apply (V3), so the signal is a
 	// constant there — uniformly, not as an archive special case. That REMOVES
 	// the non-singular replay shipped in 0.2.0 (V22, reversed).
 	//
@@ -362,7 +362,7 @@ class BWS_GP_Layout_Detector {
 	// No is_singular() gate on the replay branch: GP adds the filter without one
 	// (class-layout.php:311), so a Layout Element disables the secondary nav on
 	// archives too. Same asymmetry as featured image (V22). The metabox layer
-	// stays singular-only through post_metabox_disables() (ADR-0002).
+	// stays singular-only through post_metabox_disables() (V3).
 	// -----------------------------------------------------------------------
 
 	private static function is_secondary_nav_disabled() {
@@ -382,12 +382,12 @@ class BWS_GP_Layout_Detector {
 	}
 
 	// -----------------------------------------------------------------------
-	// Post-metabox helper: singular-only read from the queried object (ADR-0002)
+	// Post-metabox helper: singular-only read from the queried object (V3)
 	// -----------------------------------------------------------------------
 
 	/**
 	 * Returns true if the queried post's Disable-Elements metabox sets $meta_key.
-	 * Off-singular the metabox layer contributes nothing (ADR-0002).
+	 * Off-singular the metabox layer contributes nothing (V3).
 	 *
 	 * @param string $meta_key e.g. '_generate-disable-header'
 	 * @return bool

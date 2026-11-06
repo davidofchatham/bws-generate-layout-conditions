@@ -12,19 +12,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * is unchanged — this seam is internal, exercised by the Detector's tests.
  *
  * The seam deliberately exposes only the queried-object id, never a loop-item
- * id — post-meta reads cannot drift inside do_blocks() (ADR-0002, V3).
+ * id — post-meta reads cannot drift inside do_blocks() (V3).
  */
 interface BWS_GP_Environment {
 
 	/**
-	 * Whether the current request is a singular view. Mirrors is_singular() (ADR-0002).
+	 * Whether the current request is a singular view. Mirrors is_singular() (V3).
 	 *
 	 * @return bool
 	 */
 	public function is_singular();
 
 	/**
-	 * The query-level post id. Mirrors get_queried_object_id() — NEVER get_the_ID() (ADR-0002).
+	 * The query-level post id. Mirrors get_queried_object_id() — NEVER get_the_ID() (V3).
 	 *
 	 * @return int
 	 */

@@ -2,7 +2,7 @@
 /**
  * layout-states — V2 poisoned-signal proof (T13).
  *
- * Proves the observation ADR-0001 rests on: a Block Element assigned to
+ * Proves the observation V2 rests on: a Block Element assigned to
  * generate_header / generate_footer UNCONDITIONALLY remove_action()s the native
  * construct to claim the hook (class-block.php:169-175, verified on GP Premium
  * 2.5.6). The removal is keyed on the RESOLVED HOOK NAME and reads no disable
@@ -11,7 +11,7 @@
  * of whether the user disabled anything.
  *
  * That is why is_header_disabled() / is_footer_disabled() use config-replay
- * while every other signal reads hook state (V2, ADR-0001). Until this file
+ * while every other signal reads hook state (V2). Until this file
  * existed the invariant was documented, not executable: nothing failed if
  * upstream made the removal conditional, or if the Detector regressed to
  * reading hook state for header/footer.
@@ -250,7 +250,7 @@ $poisoned_hooks = $with_query( 'page_id=' . $page_poisoned, function () use ( $e
 foreach ( $constructs as $hook => $callback ) {
 	false === $poisoned_hooks[ $hook ]
 		? $ok( "{$callback} REMOVED from {$hook} by the Block Element — the poisoned signal, reproduced" )
-		: $bad( "{$callback} still attached to {$hook} — the unconditional remove_action() did NOT fire. Either the element did not display (check its display conditions resolve under a bootstrapped query), or upstream made the removal conditional. If upstream changed, V2/ADR-0001's premise is stale and config-replay may no longer be necessary — investigate before relaxing anything." );
+		: $bad( "{$callback} still attached to {$hook} — the unconditional remove_action() did NOT fire. Either the element did not display (check its display conditions resolve under a bootstrapped query), or upstream made the removal conditional. If upstream changed, V2's premise is stale and config-replay may no longer be necessary — investigate before relaxing anything." );
 }
 
 // ---------------------------------------------------------------------------
@@ -258,11 +258,11 @@ foreach ( $constructs as $hook => $callback ) {
 //
 // A hook-state reading on the poisoned page says "disabled". Nothing is
 // disabled. Config-replay says "active" and is correct. This pair is the
-// entire justification for ADR-0001, and it is what regresses if someone
+// entire justification for V2, and it is what regresses if someone
 // "simplifies" is_header_disabled() to match the other signals.
 // ---------------------------------------------------------------------------
 WP_CLI::log( '' );
-WP_CLI::log( '3. Hook-state would lie; config-replay does not (V2 / ADR-0001)' );
+WP_CLI::log( '3. Hook-state would lie; config-replay does not (V2)' );
 
 // What a hook-state reading WOULD have concluded, spelled out literally so the
 // false positive is visible in the output rather than implied.
@@ -284,11 +284,11 @@ $poisoned_states = $with_query( 'page_id=' . $page_poisoned, function () {
 
 false === $poisoned_states['header']
 	? $ok( 'Detector reports header ACTIVE on the poisoned page — config-replay routed around the poison' )
-	: $bad( 'Detector reports header DISABLED on the poisoned page — FALSE POSITIVE. is_header_disabled() is reading hook state instead of replaying config; V2/ADR-0001 has regressed.' );
+	: $bad( 'Detector reports header DISABLED on the poisoned page — FALSE POSITIVE. is_header_disabled() is reading hook state instead of replaying config; V2 has regressed.' );
 
 false === $poisoned_states['footer']
 	? $ok( 'Detector reports footer ACTIVE on the poisoned page — config-replay routed around the poison' )
-	: $bad( 'Detector reports footer DISABLED on the poisoned page — FALSE POSITIVE. is_footer_disabled() is reading hook state instead of replaying config; V2/ADR-0001 has regressed.' );
+	: $bad( 'Detector reports footer DISABLED on the poisoned page — FALSE POSITIVE. is_footer_disabled() is reading hook state instead of replaying config; V2 has regressed.' );
 
 // Positive control on the config-replay path itself. If config-replay had
 // degraded to "always active" the two assertions above would pass for the wrong
