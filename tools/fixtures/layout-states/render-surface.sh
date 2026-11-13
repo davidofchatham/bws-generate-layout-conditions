@@ -144,7 +144,7 @@ NONCE="t11-$$"
 # Cheap, and it makes every run independent of edit timing.
 echo ""
 echo "recycling lsphp workers (defeats opcache.revalidate_freq=120)"
-docker compose exec -T litespeed bash -c 'killall lsphp 2>/dev/null; true' >/dev/null 2>&1 || true
+bash ./bin/recycle-lsphp.sh || err "could not recycle lsphp workers — renders may be from pre-edit bytecode"
 sleep 2
 
 fetch(){
