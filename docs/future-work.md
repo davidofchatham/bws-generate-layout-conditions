@@ -63,7 +63,17 @@ Detail home: [#8](../../../issues/8)
 
 Progress: Not started.
 
-Blocked by: —  •  Interacts with: —
+Blocked by: —  •  Interacts with: FW-5
+
+#### FW-5 — Move the fixtures to a dedicated `layout-conditions` site
+
+The fixture blueprint's site-wide writes leak into sibling work on the shared testbed. It moves to its own site, takes the name `layout-conditions`, seeds its own archive and leaves the environment's seed family.
+
+Detail home: `.scratch/layout-conditions-site/spec.md`; handoffs to other repos beside it
+
+Progress: Spec settled 2026-11-27.
+
+Blocked by: code:the environment has a `layout-conditions` site and its seed family no longer lists `layout-states`  •  Interacts with: FW-1
 
 ### Detection scope
 
