@@ -82,6 +82,35 @@ return array(
 		'nav_locations' => array( 'primary', 'secondary' ),
 	),
 
+	// Structures this blueprint reads and does not define. Mirrors `defines`;
+	// each key maps to its owner (a blueprint, or `plugin:<slug>`).
+	//
+	// core-structures: `department` is the V22 / V31 / v8 archive fixture
+	// (/department/sales/). Read POPULATED — `sales` must carry published posts
+	// or the archive 404s and the absence checks pass vacuously — so it is not
+	// waived with `empty_ok`.
+	//
+	// gp-premium: the Elements module owns `gp_elements` and registers the Block
+	// Element meta below on it (class-block-elements.php `register_meta()`). The
+	// Disable Elements module registers no post type or meta: its
+	// `_generate-disable-*` keys are plain metabox meta, so nothing to list.
+	//
+	// generateblocks-pro: `gblocks_condition` and its `_gb_conditions` meta (v8).
+	'uses' => array(
+		'taxonomies'      => array( 'department' => 'core-structures' ),
+		'post_types'      => array(
+			'gp_elements'       => 'plugin:gp-premium',
+			'gblocks_condition' => 'plugin:generateblocks-pro',
+		),
+		'registered_meta' => array(
+			'_generate_block_type'             => 'plugin:gp-premium',
+			'_generate_hook'                   => 'plugin:gp-premium',
+			'_generate_disable_title'          => 'plugin:gp-premium',
+			'_generate_disable_featured_image' => 'plugin:gp-premium',
+			'_gb_conditions'                   => 'plugin:generateblocks-pro',
+		),
+	),
+
 	// GP Premium module options that must be 'activated' for the seeded
 	// fixtures to have any effect. seed.php hard-errors when one is missing —
 	// a silent no-op here would produce green tests that assert nothing.
