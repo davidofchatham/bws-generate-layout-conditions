@@ -63,7 +63,17 @@ Detail home: [#8](../../../issues/8)
 
 Progress: Not started.
 
-Blocked by: —  •  Interacts with: —
+Blocked by: —  •  Interacts with: FW-5
+
+#### FW-5 — Clean the fixtures off the shared testbed
+
+The fixture blueprint moved to its own `layout-conditions` site because its site-wide writes leaked into sibling work. The testbed still holds the old fixtures and settings: the environment removes them and remakes the empty base snapshot, then `core-structures` re-captures its baseline.
+
+Detail home: [`design-history/layout-conditions-site.md`](design-history/layout-conditions-site.md); handoffs to other repos in `.scratch/layout-conditions-site/`
+
+Progress: Fixtures moved and the suite green on `layout.test`, 2026-11-27. Testbed cleanup pending.
+
+Blocked by: code:the environment has cleaned `testbed`  •  Interacts with: FW-1
 
 ### Detection scope
 

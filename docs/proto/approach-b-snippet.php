@@ -3,7 +3,7 @@
  * SUPERSEDED 2026-07-21 — Approach B SHIPPED. Do not deploy this.
  *
  * T10 landed the real implementation in `includes/class-disable-elements.php`,
- * verified by `tools/fixtures/layout-states/render-surface.sh` (26 assertions,
+ * verified by `tools/fixtures/layout-conditions/render-surface.sh` (26 assertions,
  * mutation-checked). This file was never run as a staging step: the render
  * harness made the mu-plugin + View-Source loop redundant, so the mechanism went
  * straight from source-verified to ported-and-asserted.

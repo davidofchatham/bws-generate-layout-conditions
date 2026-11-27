@@ -4,7 +4,7 @@
  *
  * The sibling `registry-shape.php` REPORTS this surface; a human has to read the
  * output and notice a change. That is fine for exploration and useless as a
- * guard: this testbed auto-updates to GB/GP betas, so a release that moves the
+ * guard: nobody reads that report on every update, so a release that moves the
  * surface is silent until something fails downstream for a reason that looks
  * local. This file asserts the surface instead, so drift fails loudly and names
  * itself.

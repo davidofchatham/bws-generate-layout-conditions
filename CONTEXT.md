@@ -93,7 +93,7 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 
 **Before trusting any new suite, prove it can fail.** Every suite here has been mutation-checked — break the thing it guards, confirm it fails, and confirm it fails *by name*. Two of them passed against a broken plugin before that check was applied (`render-surface.sh` at 18/18 against stale opcache bytecode; the earlier fixture set against surfaces that rendered no markup at all). Green means nothing until it has been seen red.
 
-**The env caches will lie to you**, and both fail green rather than loudly — LiteSpeed page cache and, worse, opcache (`revalidate_freq=120`, `enable_cli=Off`, so wp-cli reads fresh source while the render does not). See the layout-states README and the wp-litespeed env README.
+**The env caches will lie to you**, and both fail green rather than loudly — LiteSpeed page cache and, worse, opcache (`revalidate_freq=120`, `enable_cli=Off`, so wp-cli reads fresh source while the render does not). See the layout-conditions README and the wp-litespeed env README.
 
 ## Pointers
 
@@ -102,6 +102,6 @@ The rule: if a claim is about *what the page emits*, or about *which of two comp
 - **Accepted detection gaps** (the Customizer layer, and — since V21 — Meaning B for the title having no signal at all) → architecture.md V20–V22, V24, V33 + "Accepted gap: Meaning B" + signal map. Secondary nav left this list at V32/T17, and the featured image's three entries left it at V21 — its relocation ambiguity, its narrow hook read, and its unmodeled metabox path are all closed. Note what closed each: the nav gap was recorded as "no clean hook signal", a statement about one *mechanism* that survived the arrival of another; the image gaps were all consequences of reading a hook at all, and went together the moment it stopped. Re-read what is left with that in mind — the Customizer layer is now the only gap shared by three signals, and it is one theme-mod read, not three
 - **Deploy-together constraint** (v1 fix without v2 condition is a regression on GB Pro sites) → V14, V13
 - **Bugs** → GitHub issues (conventions in `docs/agents/issue-tracker.md`). **Non-bug work, and landed work one line each** → `docs/future-work.md`
-- **Fixture blueprint + the four suites in detail** → `tools/fixtures/layout-states/README.md`
+- **Fixture blueprint + the four suites in detail**, and the one command that runs them all against the `layout-conditions` site → `tools/fixtures/layout-conditions/README.md`
 - **Upstream drift guard** (what breaks silently when GB/GP move) → `tools/probes/README.md`
 - **"Why is this block hiding on this page?"** on a real site, as opposed to a fixture → `tools/inspect/state-map.php`. Prints the resolved state map, every rule as GB Pro evaluates it, and the body classes, for one bootstrapped request. Asserts nothing — it is a microscope, and the four surfaces above remain the things that can fail. One page per process (hook state is process-global; see its README)

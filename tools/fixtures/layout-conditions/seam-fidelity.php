@@ -1,6 +1,6 @@
 <?php
 /**
- * layout-states — environment seam fidelity test (T9 / V28).
+ * layout-conditions — environment seam fidelity test (T9 / V28).
  *
  * This file tests BWS_GP_WP_Environment, the PRODUCTION adapter, against a real
  * WordPress + GP Premium. It does NOT test the Detector.
@@ -13,11 +13,10 @@
  * fake to reality.
  *
  * Run:
- *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/seam-fidelity.php
+ *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-conditions/seam-fidelity.php
  *
- * Preconditions: layout-states seeded (and core-structures, for the `department`
- * taxonomy the archive case needs). Takes no --url — bootstraps its own query
- * per assertion, same as verify.php. See that file's header for why --url is
+ * Preconditions: layout-conditions seeded. Takes no --url — bootstraps its own
+ * query per assertion, same as verify.php. See that file's header for why --url is
  * insufficient.
  *
  * Contrast with verify.php: verify asserts the FIXTURES are real and
@@ -77,7 +76,7 @@ $with_query = function ( $args, callable $fn ) {
 $env = new BWS_GP_WP_Environment();
 
 WP_CLI::log( '' );
-WP_CLI::log( 'layout-states seam fidelity (BWS_GP_WP_Environment)' );
+WP_CLI::log( 'layout-conditions seam fidelity (BWS_GP_WP_Environment)' );
 WP_CLI::log( '' );
 
 // ---------------------------------------------------------------------------
@@ -92,9 +91,9 @@ WP_CLI::log( '' );
 // ---------------------------------------------------------------------------
 WP_CLI::log( '1. layout_element_ids() — meta_query semantics' );
 
-$el_header_footer   = $by_name( 'gp_elements', 'ls-el-layout-header-footer' );
-$el_featured        = $by_name( 'gp_elements', 'ls-el-layout-featured-archive' );
-$el_excluded        = $by_name( 'gp_elements', 'ls-el-layout-excluded' );
+$el_header_footer   = $by_name( 'gp_elements', 'lc-el-layout-header-footer' );
+$el_featured        = $by_name( 'gp_elements', 'lc-el-layout-featured-archive' );
+$el_excluded        = $by_name( 'gp_elements', 'lc-el-layout-excluded' );
 
 $header_ids = $env->layout_element_ids( '_generate_disable_site_header' );
 
@@ -106,7 +105,7 @@ in_array( $el_header_footer, array_map( 'intval', $header_ids ), true )
 	? $ok( "header-disable element #{$el_header_footer} found" )
 	: $bad( "header-disable element #{$el_header_footer} NOT found — meta_query '!=' missed a set key" );
 
-// ls-el-layout-featured-archive sets _generate_disable_featured_image but NOT
+// lc-el-layout-featured-archive sets _generate_disable_featured_image but NOT
 // _generate_disable_site_header — its row is absent. It must not appear here.
 ! in_array( $el_featured, array_map( 'intval', $header_ids ), true )
 	? $ok( "featured-only element #{$el_featured} correctly absent (deleted row does not match '!=')" )
@@ -164,8 +163,8 @@ $env->can_replay_conditions()
 	? $ok( 'can_replay_conditions() true (GeneratePress_Conditions present)' )
 	: $bad( 'can_replay_conditions() FALSE — GP Elements module off; rest of section is vacuous' );
 
-$page_excluded = $by_name( 'page', 'ls-page-excluded' );
-$page_disabled = $by_name( 'page', 'ls-page-layout-disabled' );
+$page_excluded = $by_name( 'page', 'lc-page-excluded' );
+$page_disabled = $by_name( 'page', 'lc-page-layout-disabled' );
 
 $display = get_post_meta( $el_excluded, '_generate_element_display_conditions', true );
 $exclude = get_post_meta( $el_excluded, '_generate_element_exclude_conditions', true );
@@ -269,10 +268,10 @@ function_exists( 'generate_get_layout' )
 	: $bad( 'generate_get_layout() MISSING — adapter silently returns no-sidebar for every request' );
 
 $sidebar_cases = array(
-	'ls-page-sidebar-left'  => 'left-sidebar',
-	'ls-page-sidebar-right' => 'right-sidebar',
-	'ls-page-sidebar-both'  => 'both-sidebars',
-	'ls-page-sidebar-none'  => 'no-sidebar',
+	'lc-page-sidebar-left'  => 'left-sidebar',
+	'lc-page-sidebar-right' => 'right-sidebar',
+	'lc-page-sidebar-both'  => 'both-sidebars',
+	'lc-page-sidebar-none'  => 'no-sidebar',
 );
 
 foreach ( $sidebar_cases as $slug => $expected ) {
@@ -303,7 +302,7 @@ foreach ( $sidebar_cases as $slug => $expected ) {
 WP_CLI::log( '' );
 WP_CLI::log( '4. Request-state methods' );
 
-$page_baseline = $by_name( 'page', 'ls-page-baseline' );
+$page_baseline = $by_name( 'page', 'lc-page-baseline' );
 
 $state = $with_query( 'page_id=' . $page_baseline, function () use ( $env ) {
 	return array(
@@ -321,12 +320,11 @@ $state['queried'] === $page_baseline
 	: $bad( "queried_object_id() returned {$state['queried']}, expected {$page_baseline}" );
 
 // Non-singular control: the V22/T8 branch depends on is_singular() actually
-// going false on an archive. Uses the core-structures `department:sales` term —
-// this blueprint's one foreign dependency.
-$sales = get_term_by( 'slug', 'sales', 'department' );
+// going false on an archive. Uses this blueprint's own `category:lc-archive`.
+$archive_term = get_term_by( 'slug', 'lc-archive', 'category' );
 
-if ( $sales && ! is_wp_error( $sales ) ) {
-	$arch = $with_query( 'department=sales', function () use ( $env ) {
+if ( $archive_term && $archive_term->count ) {
+	$arch = $with_query( 'category_name=lc-archive', function () use ( $env ) {
 		return array(
 			'singular' => $env->is_singular(),
 			'queried'  => $env->queried_object_id(),
@@ -334,14 +332,14 @@ if ( $sales && ! is_wp_error( $sales ) ) {
 	} );
 
 	false === $arch['singular']
-		? $ok( 'is_singular() false on the department:sales archive' )
+		? $ok( 'is_singular() false on the category:lc-archive archive' )
 		: $bad( 'is_singular() TRUE on an archive — non-singular branch is unreachable' );
 
-	$arch['queried'] === (int) $sales->term_id
+	$arch['queried'] === (int) $archive_term->term_id
 		? $ok( 'queried_object_id() returns the term id on an archive' )
-		: $bad( "queried_object_id() returned {$arch['queried']} on archive, expected term {$sales->term_id}" );
+		: $bad( "queried_object_id() returned {$arch['queried']} on archive, expected term {$archive_term->term_id}" );
 } else {
-	$bad( 'department:sales term MISSING — seed core-structures first (foreign dependency)' );
+	$bad( 'category:lc-archive MISSING or empty — seed layout-conditions first' );
 }
 
 // post_meta(): '' for unset is the contract the fake implements and V23 rests on.

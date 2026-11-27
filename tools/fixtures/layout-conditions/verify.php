@@ -1,6 +1,6 @@
 <?php
 /**
- * layout-states blueprint — post-seed smoke test.
+ * layout-conditions blueprint — post-seed smoke test.
  *
  * Asserts the fixtures LANDED and DISCRIMINATE. Not a replacement for the
  * env test-suite: it checks that the ground truth those tests stand on is
@@ -8,7 +8,7 @@
  * fixture silently seeded nothing".
  *
  * Run:
- *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/verify.php
+ *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-conditions/verify.php
  *
  * NOTE ON QUERY STATE — the thing that makes this file necessary.
  * GeneratePress_Conditions::show_data() evaluates against the CURRENT REQUEST.
@@ -20,13 +20,9 @@
  * which is what with_page() below does.
  *
  * THIS FILE TAKES NO --url, DELIBERATELY. It resolves its own fixture IDs and
- * bootstraps a different query per assertion (V4 wants ls-page-excluded; the
+ * bootstraps a different query per assertion (V4 wants lc-page-excluded; the
  * sidebar and archive checks will want other targets), restoring $wp_query
- * afterwards. One external --url cannot serve many targets. So the absence of
- * a VERIFY_PATH entry in the env's bin/seed-all.sh is intentional, not an
- * oversight — contrast core-structures, which calls bare wp() and does require
- * one. Confirmed working: the V4 check reports discriminating results under
- * seed-all with no --url passed.
+ * afterwards. One external --url cannot serve many targets, so none is passed.
  *
  * WHAT THIS FILE CANNOT COVER: rendered output. Whether GP actually emits
  * `#mobile-header`, or whether CSS-neutralize re-exposes it (V24/V25), is not
@@ -87,7 +83,7 @@ $with_page = function ( $page_id, callable $fn ) {
 };
 
 WP_CLI::log( '' );
-WP_CLI::log( 'layout-states verify' );
+WP_CLI::log( 'layout-conditions verify' );
 WP_CLI::log( '' );
 
 // ---------------------------------------------------------------------------
@@ -155,7 +151,7 @@ WP_CLI::log( '2. Meta shapes' );
 
 // Layout disables are the literal string 'true'. A bool or 1 here would still
 // be truthy at runtime but would not match what the admin metabox writes.
-$layout_id = $element_ids['ls-el-layout-header-footer'];
+$layout_id = $element_ids['lc-el-layout-header-footer'];
 if ( $layout_id ) {
 	$v = get_post_meta( $layout_id, '_generate_disable_site_header', true );
 	'true' === $v
@@ -173,7 +169,7 @@ if ( $layout_id ) {
 }
 
 // Conditions must be arrays of array( rule, object ), object a STRING.
-$exc_id = $element_ids['ls-el-layout-excluded'];
+$exc_id = $element_ids['lc-el-layout-excluded'];
 if ( $exc_id ) {
 	$disp = get_post_meta( $exc_id, '_generate_element_display_conditions', true );
 
@@ -196,12 +192,12 @@ if ( $exc_id ) {
 // `page-hero` and `hook` are both in that set (class-block.php:110-140), so with
 // the key absent the loader returns at `if ( ! $hook )` — before registering
 // either the render callback or the wp:100 remove_elements that performs the
-// relocation. ls-el-page-hero was in exactly that state from v1 to v6 and was
+// relocation. lc-el-page-hero was in exactly that state from v1 to v6 and was
 // invisible: it existed, was published, and carried both toggle keys. Third of
 // the B6/B7 family. The archive marker element (v8) is checked by the same rule
 // because it fails the same silent way, and its failure would take the whole
 // archive row of the combination table down with it.
-foreach ( array( 'ls-el-page-hero', 'ls-el-block-archive-markers' ) as $block_slug ) {
+foreach ( array( 'lc-el-page-hero', 'lc-el-block-archive-markers' ) as $block_slug ) {
 	$block_id = isset( $element_ids[ $block_slug ] ) ? $element_ids[ $block_slug ] : 0;
 
 	if ( ! $block_id ) {
@@ -211,7 +207,7 @@ foreach ( array( 'ls-el-page-hero', 'ls-el-block-archive-markers' ) as $block_sl
 	$block_hook = get_post_meta( $block_id, '_generate_hook', true );
 	'' !== $block_hook
 		? $ok( "{$block_slug} carries _generate_hook ({$block_hook}) — GP will load it" )
-		: $bad( "{$block_slug} has NO _generate_hook — GP returns before registering it, so the element renders nothing and removes nothing. It is inert, silently. Reseed layout-states at v8+." );
+		: $bad( "{$block_slug} has NO _generate_hook — GP returns before registering it, so the element renders nothing and removes nothing. It is inert, silently. Reseed layout-conditions." );
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +243,7 @@ in_array( $layout_id, $found, true )
 	: $bad( 'layout_element_ids() MISSED the header-disabling element' );
 
 // The featured-image element must NOT appear — it disables a different key.
-$fa_id = $element_ids['ls-el-layout-featured-archive'];
+$fa_id = $element_ids['lc-el-layout-featured-archive'];
 ! in_array( $fa_id, $found, true )
 	? $ok( 'layout_element_ids() correctly excludes non-matching keys' )
 	: $bad( 'layout_element_ids() returned an element with no header disable' );
@@ -264,12 +260,12 @@ WP_CLI::log( '4. V4 — exclude discriminates' );
 
 if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	$bad( 'GeneratePress_Conditions ABSENT — GP Premium Elements module inactive; config-replay cannot be verified' );
-} elseif ( $exc_id && $page_ids['ls-page-excluded'] ) {
+} elseif ( $exc_id && $page_ids['lc-page-excluded'] ) {
 	$display = get_post_meta( $exc_id, '_generate_element_display_conditions', true ) ?: array();
 	$exclude = get_post_meta( $exc_id, '_generate_element_exclude_conditions', true ) ?: array();
 	$users   = get_post_meta( $exc_id, '_generate_element_user_conditions', true ) ?: array();
 
-	$result = $with_page( $page_ids['ls-page-excluded'], function () use ( $display, $exclude, $users ) {
+	$result = $with_page( $page_ids['lc-page-excluded'], function () use ( $display, $exclude, $users ) {
 		return array(
 			'display_only' => (bool) GeneratePress_Conditions::show_data( $display, array(), array() ),
 			'all_three'    => (bool) GeneratePress_Conditions::show_data( $display, $exclude, $users ),
@@ -288,18 +284,18 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Foreign dependency — V22 needs a POPULATED archive.
+// 5. Own archive — V22 needs a POPULATED archive.
 // ---------------------------------------------------------------------------
 WP_CLI::log( '' );
-WP_CLI::log( '5. Foreign dependency (core-structures)' );
+WP_CLI::log( '5. Own archive (category:lc-archive)' );
 
-$sales = get_term_by( 'slug', 'sales', 'department' );
-if ( ! $sales ) {
-	$bad( 'department:sales missing — reseed core-structures' );
-} elseif ( 0 === (int) $sales->count ) {
-	$bad( 'department:sales has 0 posts — /department/sales/ 404s and the V22 test would pass vacuously' );
+$archive_term = get_term_by( 'slug', 'lc-archive', 'category' );
+if ( ! $archive_term ) {
+	$bad( 'category:lc-archive missing — reseed layout-conditions' );
+} elseif ( 0 === (int) $archive_term->count ) {
+	$bad( 'category:lc-archive has 0 posts — the archive checks would pass vacuously' );
 } else {
-	$ok( sprintf( 'department:sales carries %d post(s)', $sales->count ) );
+	$ok( sprintf( 'category:lc-archive carries %d post(s)', $archive_term->count ) );
 }
 
 // ---------------------------------------------------------------------------
@@ -309,44 +305,44 @@ if ( ! $sales ) {
 // stored their display-condition `object` as the term SLUG. GP resolves a
 // taxonomy archive to rule `taxonomy:{taxonomy}` with object = the term **ID**
 // (class-conditions.php:225-231) and compares with a non-strict in_array(), so
-// under PHP 8 `7 == 'sales'` is false and neither element ever applied to
-// /department/sales/. Every existing check still passed: the elements existed,
+// under PHP 8 `7 == 'slug'` is false and neither element ever applied to
+// /category/lc-archive/. Every existing check still passed: the elements existed,
 // were published, carried the right meta, and answered the right meta_query.
 // Nothing evaluated their conditions against a real archive query — the exact
 // "fixture that verifies itself and proves nothing" shape the README warns of.
 //
 // Requires a bootstrapped ARCHIVE query, not a page one: show_data() reads the
-// current request, and with_page() cannot produce is_tax().
+// current request, and with_page() cannot produce is_category().
 // ---------------------------------------------------------------------------
 WP_CLI::log( '' );
 WP_CLI::log( '6. Archive elements apply on the archive' );
 
 if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	$bad( 'GeneratePress_Conditions ABSENT — cannot verify archive element conditions' );
-} elseif ( ! $sales ) {
-	$bad( 'department:sales missing — archive element conditions unverifiable' );
+} elseif ( ! $archive_term ) {
+	$bad( 'category:lc-archive missing — archive element conditions unverifiable' );
 } else {
 	global $wp_query, $wp_the_query;
 	$saved_query = $wp_query;
 	$saved_the   = $wp_the_query;
 
-	wp( 'department=sales' );
+	wp( 'category_name=lc-archive' );
 
-	$on_archive = is_tax( 'department', 'sales' );
+	$on_archive = is_category( 'lc-archive' );
 
 	$archive_results = array();
-	// ls-el-layout-secondary-nav added v5. It carries TWO display conditions
+	// lc-el-layout-secondary-nav added v5. It carries TWO display conditions
 	// (a page and this archive) where the other two carry one, so it is also the
 	// only fixture proving a multi-condition element still matches the archive
 	// arm — show_data() ORs the display list, but a fixture written as one
 	// condition would never catch a regression to AND.
-	// ls-el-block-archive-markers added v8. It is the ONLY carrier of the
+	// lc-el-block-archive-markers added v8. It is the ONLY carrier of the
 	// combination table's archive row — an archive has no post_content, so if
 	// this element misses the request, all three markers are absent there and
 	// the two absence assertions in render-surface.sh §9 pass vacuously. The
 	// render harness has its own control for that (the unconditioned marker),
 	// but this is the check that names the CAUSE rather than the symptom.
-	foreach ( array( 'ls-el-layout-featured-archive', 'ls-el-layout-title-archive', 'ls-el-layout-secondary-nav', 'ls-el-block-archive-markers' ) as $slug ) {
+	foreach ( array( 'lc-el-layout-featured-archive', 'lc-el-layout-title-archive', 'lc-el-layout-secondary-nav', 'lc-el-block-archive-markers' ) as $slug ) {
 		$eid = isset( $element_ids[ $slug ] ) ? $element_ids[ $slug ] : 0;
 
 		if ( ! $eid ) {
@@ -368,8 +364,8 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	// Without this the two checks below would pass vacuously on a query that
 	// never became an archive.
 	$on_archive
-		? $ok( 'archive query bootstrapped (is_tax department:sales)' )
-		: $bad( 'wp( "department=sales" ) did not produce a taxonomy archive — the checks below prove nothing' );
+		? $ok( 'archive query bootstrapped (is_category lc-archive)' )
+		: $bad( 'wp( "category_name=lc-archive" ) did not produce a category archive — the checks below prove nothing' );
 
 	foreach ( $archive_results as $slug => $applies ) {
 		if ( null === $applies ) {
@@ -378,8 +374,8 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 		}
 
 		$applies
-			? $ok( "{$slug} applies on /department/sales/" )
-			: $bad( "{$slug} does NOT apply on /department/sales/ — its display-condition object must be the term ID, not the slug (GP compares term_id; PHP 8 makes 7 == 'sales' false). Reseed at blueprint v4+." );
+			? $ok( "{$slug} applies on /category/lc-archive/" )
+			: $bad( "{$slug} does NOT apply on /category/lc-archive/ — its display-condition object must be the term ID, not the slug (GP compares term_id; PHP 8 makes 7 == 'slug' false). Reseed layout-conditions." );
 	}
 }
 
@@ -389,7 +385,7 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 // The featured image has two render paths. The GP Premium Blog module picks:
 // active, it removes the theme's page-header actions unconditionally at wp:50
 // (blog/functions/images.php:164-165) and renders its own callback instead. The
-// module state was never pinned here, and testbed had it OFF — so every
+// module state was never pinned here, and the earlier shared site had it OFF — so every
 // featured-image assertion in this blueprint ran against the theme path alone,
 // and a suppression covering only that path passed green while doing nothing on
 // a Blog-module-active site. That is B8, and it was live on Site H.
@@ -415,12 +411,12 @@ $blog_settings = wp_parse_args(
 // from a working suppression.
 ! empty( $blog_settings['page_post_image'] )
 	? $ok( 'blog setting page_post_image ON — the image actually renders on fixture pages' )
-	: $bad( 'blog setting page_post_image is OFF — the module renders no image at all, so the suppression assertions cannot fail. Reseed layout-states at v6+.' );
+	: $bad( 'blog setting page_post_image is OFF — the module renders no image at all, so the suppression assertions cannot fail. Reseed layout-conditions.' );
 
 'inside-content' === ( $blog_settings['page_post_image_position'] ?? '' )
 	? $ok( 'blog setting page_post_image_position = inside-content — renders inside #content, where the theme path never does' )
 	: $bad( sprintf(
-		'blog setting page_post_image_position = %s, expected inside-content. The render harness tells the two paths apart by POSITION (both wrappers carry page-header-image on a page), and at above-content the blog path lands on generate_after_header — the same hook as the theme path. Reseed layout-states at v6+.',
+		'blog setting page_post_image_position = %s, expected inside-content. The render harness tells the two paths apart by POSITION (both wrappers carry page-header-image on a page), and at above-content the blog path lands on generate_after_header — the same hook as the theme path. Reseed layout-conditions.',
 		var_export( $blog_settings['page_post_image_position'] ?? null, true )
 	) );
 
@@ -429,7 +425,7 @@ $blog_settings = wp_parse_args(
 //    the kill-switch element (issue #5).
 //
 // RUNS LAST, and that is load-bearing. The last block bootstraps a query on
-// ls-page-featured-kill, which fires `wp` — so GP's element loader applies the
+// lc-page-featured-kill, which fires `wp` — so GP's element loader applies the
 // kill-switch Layout Element and its five remove_action() calls take effect
 // process-globally for everything after it. Nothing below reads featured-image
 // hook state, and nothing must be added below that does. (§6 already mutates
@@ -551,11 +547,11 @@ if ( ! class_exists( 'GenerateBlocks_Pro_Conditions' ) ) {
 $expected_condition_ids = array_values( array_filter( $condition_ids ) );
 
 $marker_carriers = array(
-	'page:ls-page-baseline'            => $page_ids['ls-page-baseline'] ?? 0,
-	'page:ls-page-metabox-featured'    => $page_ids['ls-page-metabox-featured'] ?? 0,
-	'page:ls-page-hero'                => $page_ids['ls-page-hero'] ?? 0,
-	'page:ls-page-featured-kill'       => $page_ids['ls-page-featured-kill'] ?? 0,
-	'element:ls-el-block-archive-markers' => $element_ids['ls-el-block-archive-markers'] ?? 0,
+	'page:lc-page-baseline'            => $page_ids['lc-page-baseline'] ?? 0,
+	'page:lc-page-metabox-featured'    => $page_ids['lc-page-metabox-featured'] ?? 0,
+	'page:lc-page-hero'                => $page_ids['lc-page-hero'] ?? 0,
+	'page:lc-page-featured-kill'       => $page_ids['lc-page-featured-kill'] ?? 0,
+	'element:lc-el-block-archive-markers' => $element_ids['lc-el-block-archive-markers'] ?? 0,
 );
 
 foreach ( $marker_carriers as $label => $carrier_id ) {
@@ -567,7 +563,7 @@ foreach ( $marker_carriers as $label => $carrier_id ) {
 	$content = get_post_field( 'post_content', $carrier_id );
 
 	if ( false !== strpos( $content, '{{condition:' ) ) {
-		$bad( "{$label} still holds an UNRESOLVED {{condition:...}} placeholder — absint() makes it 0, GB Pro reads 0 as 'no condition' and the marker renders unconditionally. Reseed at v8+." );
+		$bad( "{$label} still holds an UNRESOLVED {{condition:...}} placeholder — absint() makes it 0, GB Pro reads 0 as 'no condition' and the marker renders unconditionally. Reseed layout-conditions." );
 		continue;
 	}
 
@@ -596,21 +592,21 @@ foreach ( $marker_carriers as $label => $carrier_id ) {
 // renders no page-header-image there under ANY configuration, and §9's central
 // observation — that the slot really is left empty — would be true of a page the
 // element never touched. Same vacuous-pass shape as the v2 thumbnail bug on
-// ls-page-metabox-featured, and it applies to the Hero exactly as it does to the
+// lc-page-metabox-featured, and it applies to the Hero exactly as it does to the
 // kill switch: both assert the absence of a wrapper GP would otherwise draw.
-$kill_page_id = $page_ids['ls-page-featured-kill'] ?? 0;
+$kill_page_id = $page_ids['lc-page-featured-kill'] ?? 0;
 
-foreach ( array( 'ls-page-featured-kill', 'ls-page-hero' ) as $thumb_slug ) {
+foreach ( array( 'lc-page-featured-kill', 'lc-page-hero' ) as $thumb_slug ) {
 	$thumb_id = $page_ids[ $thumb_slug ] ?? 0;
 
 	if ( ! $thumb_id ) {
-		$bad( "{$thumb_slug} MISSING — reseed layout-states at v8+" );
+		$bad( "{$thumb_slug} MISSING — reseed layout-conditions" );
 		continue;
 	}
 
 	has_post_thumbnail( $thumb_id )
 		? $ok( "{$thumb_slug} carries a thumbnail — GP would draw an image here if nothing removed its callbacks" )
-		: $bad( "{$thumb_slug} has NO thumbnail — the \"GP leaves the slot empty\" assertion in render-surface.sh §9 would pass against a page that renders no image under any configuration. Reseed layout-states at v8+." );
+		: $bad( "{$thumb_slug} has NO thumbnail — the \"GP leaves the slot empty\" assertion in render-surface.sh §9 would pass against a page that renders no image under any configuration. Reseed layout-conditions." );
 }
 
 // Does the kill switch apply to the request it targets — and only to it?
@@ -620,16 +616,16 @@ foreach ( array( 'ls-page-featured-kill', 'ls-page-hero' ) as $thumb_slug ) {
 // the featured image everywhere, including the baseline that every absence
 // assertion in §9 is read against. So both arms, same discipline as §4.
 //
-// LAST, deliberately: bootstrapping ls-page-featured-kill fires `wp`, GP applies
+// LAST, deliberately: bootstrapping lc-page-featured-kill fires `wp`, GP applies
 // the element, and its five remove_action() calls persist for the rest of this
 // process.
 if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 	$bad( 'GeneratePress_Conditions ABSENT — cannot verify the kill-switch element applies' );
 } else {
-	$kill_id = $element_ids['ls-el-layout-featured-kill'] ?? 0;
+	$kill_id = $element_ids['lc-el-layout-featured-kill'] ?? 0;
 
 	if ( ! $kill_id ) {
-		$bad( 'ls-el-layout-featured-kill MISSING — reseed layout-states at v8+' );
+		$bad( 'lc-el-layout-featured-kill MISSING — reseed layout-conditions' );
 	} else {
 		$kill_meta = get_post_meta( $kill_id, '_generate_disable_featured_image', true );
 
@@ -648,8 +644,8 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 			);
 		};
 
-		$off_target = $page_ids['ls-page-baseline']
-			? $with_page( $page_ids['ls-page-baseline'], $kill_conditions )
+		$off_target = $page_ids['lc-page-baseline']
+			? $with_page( $page_ids['lc-page-baseline'], $kill_conditions )
 			: null;
 
 		$on_target = $kill_page_id
@@ -657,12 +653,12 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 			: null;
 
 		false === $off_target
-			? $ok( 'kill switch does NOT apply on ls-page-baseline (the control every §9 absence check is read against)' )
-			: $bad( 'kill switch applies on ls-page-baseline — it would disable the featured image on the control page, and §9 could not tell "the rule works" from "nothing draws an image anywhere".' );
+			? $ok( 'kill switch does NOT apply on lc-page-baseline (the control every §9 absence check is read against)' )
+			: $bad( 'kill switch applies on lc-page-baseline — it would disable the featured image on the control page, and §9 could not tell "the rule works" from "nothing draws an image anywhere".' );
 
 		true === $on_target
-			? $ok( 'kill switch APPLIES on ls-page-featured-kill (GP will remove all five image callbacks there)' )
-			: $bad( 'kill switch does NOT apply on ls-page-featured-kill — its display condition misses the page it targets, so nothing is disabled and every §9 assertion about that row is vacuous. Same shape as B6.' );
+			? $ok( 'kill switch APPLIES on lc-page-featured-kill (GP will remove all five image callbacks there)' )
+			: $bad( 'kill switch does NOT apply on lc-page-featured-kill — its display condition misses the page it targets, so nothing is disabled and every §9 assertion about that row is vacuous. Same shape as B6.' );
 	}
 }
 
@@ -675,7 +671,7 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 // asserts it CHANGED an outcome.
 //
 // ONE request answers it, which is what makes this safe to do from the CLI. On
-// ls-page-featured-kill the two rules genuinely disagree — the post setting is
+// lc-page-featured-kill the two rules genuinely disagree — the post setting is
 // untouched (image condition true) while GP's five callbacks are gone (slot
 // condition false) — so a single bootstrap yields both verdicts. Neither an
 // always-true nor an always-false evaluator can produce that pair, so no second
@@ -689,7 +685,7 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 if ( ! class_exists( 'GenerateBlocks_Pro_Conditions' ) || ! class_exists( 'BWS_GP_Layout_Detector' ) ) {
 	$bad( 'GB Pro conditions or the Detector are ABSENT — cannot verify the seeded conditions actually evaluate' );
 } elseif ( ! $kill_page_id ) {
-	$bad( 'ls-page-featured-kill MISSING — cannot verify the seeded conditions evaluate' );
+	$bad( 'lc-page-featured-kill MISSING — cannot verify the seeded conditions evaluate' );
 } else {
 	$verdicts = $with_page( $kill_page_id, function () use ( $condition_ids ) {
 		// states() memoizes per request (V5) and this process has already
@@ -709,18 +705,18 @@ if ( ! class_exists( 'GenerateBlocks_Pro_Conditions' ) || ! class_exists( 'BWS_G
 		return $out;
 	} );
 
-	true === ( $verdicts['ls-cond-image-active'] ?? null )
-		? $ok( 'ls-cond-image-active EVALUATES TRUE on ls-page-featured-kill (the post setting is untouched there)' )
+	true === ( $verdicts['lc-cond-image-active'] ?? null )
+		? $ok( 'lc-cond-image-active EVALUATES TRUE on lc-page-featured-kill (the post setting is untouched there)' )
 		: $bad( sprintf(
-			'ls-cond-image-active evaluated %s on ls-page-featured-kill, expected true — nothing on that page sets the per-post toggle, so a block conditioned on it must render. If both conditions answer the same way, the fixtures prove nothing.',
-			var_export( $verdicts['ls-cond-image-active'] ?? null, true )
+			'lc-cond-image-active evaluated %s on lc-page-featured-kill, expected true — nothing on that page sets the per-post toggle, so a block conditioned on it must render. If both conditions answer the same way, the fixtures prove nothing.',
+			var_export( $verdicts['lc-cond-image-active'] ?? null, true )
 		) );
 
-	false === ( $verdicts['ls-cond-slot-active'] ?? null )
-		? $ok( 'ls-cond-slot-active EVALUATES FALSE on the same request — the two rules genuinely disagree, which is what the slot rule exists for' )
+	false === ( $verdicts['lc-cond-slot-active'] ?? null )
+		? $ok( 'lc-cond-slot-active EVALUATES FALSE on the same request — the two rules genuinely disagree, which is what the slot rule exists for' )
 		: $bad( sprintf(
-			'ls-cond-slot-active evaluated %s on ls-page-featured-kill, expected false — the Layout Element has removed all five of GP\'s image callbacks there. If this matches the image condition\'s verdict, one of the two is not being evaluated at all.',
-			var_export( $verdicts['ls-cond-slot-active'] ?? null, true )
+			'lc-cond-slot-active evaluated %s on lc-page-featured-kill, expected false — the Layout Element has removed all five of GP\'s image callbacks there. If this matches the image condition\'s verdict, one of the two is not being evaluated at all.',
+			var_export( $verdicts['lc-cond-slot-active'] ?? null, true )
 		) );
 }
 
