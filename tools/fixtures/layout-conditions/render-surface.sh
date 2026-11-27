@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# layout-states — render-level test harness (T11 + T10 + T15/T16 + T17/T18 +
+# layout-conditions — render-level test harness (T11 + T10 + T15/T16 + T17/T18 +
 # V21 / V14, V24, V25, V31, V32).
 #
 # Asserts on RENDERED HTML. Everything else in this blueprint runs under wp-cli,
@@ -26,17 +26,17 @@
 # width. That gap is closed by eye, not here (done 2026-07-21; see V25).
 #
 # Usage:
-#   tools/fixtures/layout-states/render-surface.sh --site testbed
+#   tools/fixtures/layout-conditions/render-surface.sh --site layout-conditions
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-states seeded at blueprint v8 — earlier
+# pass --env-root. Preconditions: layout-conditions seeded at blueprint v9 — earlier
 # fixtures cannot support these assertions (v1: no featured image, no nav menus,
 # Menu Plus mobile header never enabled; v2: no thumbnail on the two nav-toggle
 # pages, which makes T10's over-suppression checks vacuous; v3: no archive
 # content-title element, which makes section 6 vacuous; v4: no secondary-nav
 # Layout Element, which makes section 7 vacuous; v5: the GP Premium Blog module
 # unpinned, so the featured-image assertions ran against whichever of the two
-# render paths that testbed happened to have live — B8; v6: the Page Hero element
+# render paths that the site happened to have live — B8; v6: the Page Hero element
 # carried no _generate_hook and was never loaded, making section 8's relocation
 # assertion vacuous — B9; v7: no conditioned blocks and no kill-switch fixture, so
 # section 9 has nothing to read). The script verifies all of that rather than
@@ -60,7 +60,7 @@
 #     positive assertions were red for the whole life of the plugin until T17.
 #   * Section 8 (V21) is a second inversion pass, on the featured image. The
 #     hero page and the archive both used to emit gp-no-featured-image and must
-#     not now — and so, on this testbed, did the baseline, which is V33 showing
+#     not now — and so, on the site of that time, did the baseline, which is V33 showing
 #     up in the harness rather than a fixture quirk. See the section header.
 #   * Section 9 (issue #5) is a fifth era and a different KIND of assertion. Every
 #     section above reads markup this plugin or GP emits; section 9 reads the
@@ -172,9 +172,9 @@ IMG_CLASS='[" ]page-header-image'
 echo ""
 echo "0. preconditions (site: ${SITE}, domain: ${MAIN})"
 
-BASELINE=$(fetch 'ls-page-baseline' || true)
+BASELINE=$(fetch 'lc-page-baseline' || true)
 
-[ -n "${BASELINE}" ] || err "empty response for ls-page-baseline — check --network host and that the stack is up. Every absence assertion would pass vacuously against this."
+[ -n "${BASELINE}" ] || err "empty response for lc-page-baseline — check --network host and that the stack is up. Every absence assertion would pass vacuously against this."
 
 case "${BASELINE}" in
     *'</html>'*) ok "baseline response is a complete HTML document ($(printf '%s' "${BASELINE}" | wc -c) bytes)" ;;
@@ -185,8 +185,8 @@ esac
 # turns a specific assertion below into a vacuous pass. Checked on the baseline
 # page, where all three must render regardless of any disable toggle.
 case "${BASELINE}" in
-    *'ls-fixture-image'*) ok 'baseline carries a featured image (v2 fixture)' ;;
-    *) err 'baseline has no featured image — reseed layout-states at v2+. Without it the V24 featured-image assertions cannot fail.' ;;
+    *'lc-fixture-image'*) ok 'baseline carries a featured image (v2 fixture)' ;;
+    *) err 'baseline has no featured image — reseed layout-conditions. Without it the V24 featured-image assertions cannot fail.' ;;
 esac
 
 # Blueprint v6 precondition (B8) — WHICH featured-image path is live.
@@ -201,32 +201,32 @@ esac
 #
 # This matters because the module CHOOSES the path: when active it removes both
 # theme actions unconditionally at wp:50 (blog/functions/images.php:164-165). With
-# it inactive — testbed's state through blueprint v5 — section 2 exercised only
+# it inactive — the state through blueprint v5 — section 2 exercised only
 # the theme half, and the plugin's suppression covered only that half and passed
 # green while the toggle did nothing at all on a Blog-module-active site (B8).
 case "${BASELINE}" in
     *${IMG_CLASS}*) : ;;
-    *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-states at v2+.' ;;
+    *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-conditions at v2+.' ;;
 esac
 
 case "${BASELINE%%${IMG_CLASS}*}" in
     *'id="content"'*) ok 'baseline featured image renders on the BLOG-module path, inside #content (v6)' ;;
-    *) err 'baseline featured image renders OUTSIDE #content — that is the theme page-header path, so the Blog module is inactive or its image position is not inside-content. Section 2 would then exercise half the surface B8 is about, exactly as it did through v5. Activate generate_package_blog and reseed layout-states at v6+.' ;;
+    *) err 'baseline featured image renders OUTSIDE #content — that is the theme page-header path, so the Blog module is inactive or its image position is not inside-content. Section 2 would then exercise half the surface B8 is about, exactly as it did through v5. Activate generate_package_blog and reseed layout-conditions.' ;;
 esac
 
 case "${BASELINE}" in
     *'id="site-navigation"'*) ok 'baseline renders #site-navigation (nav menu assigned, v2)' ;;
-    *) err 'no #site-navigation on baseline — no menu assigned to the primary location. Reseed layout-states at v2+.' ;;
+    *) err 'no #site-navigation on baseline — no menu assigned to the primary location. Reseed layout-conditions at v2+.' ;;
 esac
 
 case "${BASELINE}" in
     *'id="secondary-navigation"'*) ok 'baseline renders #secondary-navigation (v2)' ;;
-    *) err 'no #secondary-navigation on baseline — reseed layout-states at v2+.' ;;
+    *) err 'no #secondary-navigation on baseline — reseed layout-conditions.' ;;
 esac
 
 case "${BASELINE}" in
     *'id="mobile-header"'*) ok 'baseline renders #mobile-header (Menu Plus mobile header ON, v2)' ;;
-    *) err 'no #mobile-header on baseline — generate_menu_plus_settings mobile_header is not enabled. V25 cannot be observed. Reseed layout-states at v2+ (v1 wrote this as a theme_mod, which GP never reads).' ;;
+    *) err 'no #mobile-header on baseline — generate_menu_plus_settings mobile_header is not enabled. V25 cannot be observed. Reseed layout-conditions at v2+ (v1 wrote this as a theme_mod, which GP never reads).' ;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -253,10 +253,10 @@ esac
 echo ""
 echo "1. CSS-neutralize suppresses GP's per-post rules (V12)"
 
-FEATURED=$(fetch 'ls-page-metabox-featured' || true)
-SECNAV=$(fetch 'ls-page-metabox-secondary-nav' || true)
-NAV=$(fetch 'ls-page-metabox-nav' || true)
-PHPREM=$(fetch 'ls-page-metabox-php-removed' || true)
+FEATURED=$(fetch 'lc-page-metabox-featured' || true)
+SECNAV=$(fetch 'lc-page-metabox-secondary-nav' || true)
+NAV=$(fetch 'lc-page-metabox-nav' || true)
+PHPREM=$(fetch 'lc-page-metabox-php-removed' || true)
 
 for name in FEATURED SECNAV NAV PHPREM; do
     body="${!name}"
@@ -269,12 +269,12 @@ done
 # condition. Checked here rather than trusted, same as the v2 preconditions above.
 case "${SECNAV}" in
     *${IMG_CLASS}*) ok 'secondary-nav fixture renders a featured image (v3)' ;;
-    *) err 'ls-page-metabox-secondary-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
+    *) err 'lc-page-metabox-secondary-nav renders no featured image — reseed layout-conditions. The over-suppression assertion in section 5 would pass vacuously.' ;;
 esac
 
 case "${NAV}" in
     *${IMG_CLASS}*) ok 'primary-nav fixture renders a featured image (v3)' ;;
-    *) err 'ls-page-metabox-nav renders no featured image — reseed layout-states at v3+. The over-suppression assertion in section 5 would pass vacuously.' ;;
+    *) err 'lc-page-metabox-nav renders no featured image — reseed layout-conditions. The over-suppression assertion in section 5 would pass vacuously.' ;;
 esac
 
 RULE_IMAGE='.generate-page-header, .page-header-image, .page-header-image-single {display:none}'
@@ -319,8 +319,8 @@ echo "2. V24 — CSS-only vs PHP-removed"
 # Matched on the `page-header-image` WRAPPER, not the attachment filename.
 #
 # The filename is the obvious marker and it is wrong for an ABSENCE check: the
-# thumbnail URL also appears in og:image, twitter:image and Yoast's JSON-LD
-# ImageObject, all emitted from post meta whether or not the image renders. A
+# thumbnail URL can also appear in SEO plugin tags (og:image, JSON-LD), all
+# emitted from post meta whether or not the image renders. A
 # filename grep therefore reports "still present" against a page where the image
 # is provably gone — which it did, as the first red run of this assertion.
 #
@@ -497,9 +497,9 @@ esac
 echo ""
 echo "6. V31 — content title = the page-title role, not the loop cards"
 
-ARCHIVE=$(fetch 'department/sales' || true)
+ARCHIVE=$(fetch 'category/lc-archive' || true)
 
-[ -n "${ARCHIVE}" ] || err "empty response for /department/sales/ — every assertion in this section is presence/absence against the body and would pass vacuously."
+[ -n "${ARCHIVE}" ] || err "empty response for /category/lc-archive/ — every assertion in this section is presence/absence against the body and would pass vacuously."
 
 case "${ARCHIVE}" in
     *'</html>'*) ok "archive response is a complete HTML document ($(printf '%s' "${ARCHIVE}" | wc -c) bytes)" ;;
@@ -509,18 +509,18 @@ esac
 # An EMPTY archive 404s, and a 404 satisfies both absence checks below for the
 # wrong reason. Prove the loop rendered at least one post first.
 case "${ARCHIVE}" in
-    *'id="post-'*) ok 'archive renders the default loop (>=1 post) — core-structures department:sales is populated' ;;
-    *) err '/department/sales/ renders no posts — reseed core-structures. The absence assertions below would pass against a 404.' ;;
+    *'id="post-'*) ok 'archive renders the default loop (>=1 post) — category:lc-archive is populated' ;;
+    *) err '/category/lc-archive/ renders no posts — reseed layout-conditions. The absence assertions below would pass against a 404.' ;;
 esac
 
 # Blueprint v4 precondition, and it hard-aborts for the same reason as the ones in
-# section 0. If ls-el-layout-title-archive is missing (or its display condition
+# section 0. If lc-el-layout-title-archive is missing (or its display condition
 # misses this archive) then NOTHING is disabled on this page — and the
 # gp-no-content-title absence check below passes trivially, for a reason that has
 # nothing to do with the behaviour under test. Suppressed loop-card titles are the
 # proof that the element is live.
 case "${ARCHIVE}" in
-    *'class="entry-title"'*) err 'loop-card titles still render on the archive — ls-el-layout-title-archive is not applying, so the gp-no-content-title check below would pass vacuously. Reseed layout-states at blueprint v4+ and check its taxonomy:department/sales display condition.' ;;
+    *'class="entry-title"'*) err 'loop-card titles still render on the archive — lc-el-layout-title-archive is not applying, so the gp-no-content-title check below would pass vacuously. Reseed layout-conditions at blueprint v4+ and check its taxonomy:category lc-archive display condition.' ;;
     *) ok 'loop-card item titles ARE suppressed (element live, blueprint v4+) — the two roles are genuinely split' ;;
 esac
 
@@ -563,11 +563,11 @@ esac
 #     is the precedent: a fixture can carry the right shape and match nothing.
 #   * THE UNGATED CLAIM. GP adds its has_nav_menu filter with no is_singular()
 #     guard (class-layout.php:311), so ONE element must reach a singular page and
-#     an archive. ls-el-layout-secondary-nav carries both display conditions, so
+#     an archive. lc-el-layout-secondary-nav carries both display conditions, so
 #     a regression that re-gates either side fails here by name.
 #
 # ASYMMETRY, deliberate: on the singular page both halves are asserted — the
-# markup is gone AND the body class is emitted — because ls-page-baseline is the
+# markup is gone AND the body class is emitted — because lc-page-baseline is the
 # control proving #secondary-navigation renders at all (section 0). On the
 # ARCHIVE there is no such control: the element is what disables it, and a second
 # archive with the nav intact does not exist in this blueprint. So only the body
@@ -578,13 +578,13 @@ esac
 echo ""
 echo "7. V32 — secondary nav config-replay on singular + archive"
 
-ELSECNAV=$(fetch 'ls-page-layout-secondary-nav' || true)
+ELSECNAV=$(fetch 'lc-page-layout-secondary-nav' || true)
 
-[ -n "${ELSECNAV}" ] || err "empty response for ls-page-layout-secondary-nav — reseed layout-states at blueprint v5+. Every assertion in this section would pass vacuously."
+[ -n "${ELSECNAV}" ] || err "empty response for lc-page-layout-secondary-nav — reseed layout-conditions. Every assertion in this section would pass vacuously."
 
 case "${ELSECNAV}" in
-    *'</html>'*) ok "ls-page-layout-secondary-nav is a complete HTML document ($(printf '%s' "${ELSECNAV}" | wc -c) bytes)" ;;
-    *) err 'ls-page-layout-secondary-nav response is not complete HTML — refusing to assert against a truncated body' ;;
+    *'</html>'*) ok "lc-page-layout-secondary-nav is a complete HTML document ($(printf '%s' "${ELSECNAV}" | wc -c) bytes)" ;;
+    *) err 'lc-page-layout-secondary-nav response is not complete HTML — refusing to assert against a truncated body' ;;
 esac
 
 case "${ELSECNAV}" in
@@ -599,7 +599,7 @@ esac
 
 case "${ARCHIVE}" in
     *'gp-no-secondary-nav'*) ok 'gp-no-secondary-nav emitted on the ARCHIVE — the replay branch is ungated, matching GP (class-layout.php:311)' ;;
-    *) bad 'gp-no-secondary-nav MISSING on /department/sales/ — the replay branch is gated on is_singular() while GP is not, so a Layout Element disables the nav there while the rule reports it active.' ;;
+    *) bad 'gp-no-secondary-nav MISSING on /category/lc-archive/ — the replay branch is gated on is_singular() while GP is not, so a Layout Element disables the nav there while the rule reports it active.' ;;
 esac
 
 # Controls. Without the first, a Detector that emitted this class everywhere
@@ -626,18 +626,18 @@ esac
 # The two inverted assertions are the hero page and the archive. Under the
 # pre-closure rule:
 #
-#   * ls-page-hero carries a Page Hero Block Element with "Disable featured
+#   * lc-page-hero carries a Page Hero Block Element with "Disable featured
 #     image" — a RELOCATION. The Hero draws the image itself and removes GP's
 #     callback to avoid a duplicate, so hook-state read "disabled" and the class
 #     was emitted on a page that shows an image (V21).
-#   * /department/sales/ carries ls-el-layout-featured-archive, and the
+#   * /category/lc-archive/ carries lc-el-layout-featured-archive, and the
 #     non-singular replay branch (V22/T8) read its key, so the class was emitted
 #     on every page that element covers.
 #
 # Both must now be ABSENT. Neither source is read on any page type.
 #
 # Worth naming because it is easy to misread as an over-broad control: on this
-# testbed the pre-closure rule emitted gp-no-featured-image on the BASELINE too.
+# the site of that time the pre-closure rule emitted gp-no-featured-image on the BASELINE too.
 # Section 0 pins the blog image position to `inside-content`, so GP's callback
 # sits on `generate_before_content` while the old rule probed
 # `generate_after_entry_header` — absent everywhere, on every singular page,
@@ -649,13 +649,13 @@ esac
 echo ""
 echo "8. V21 — featured image = the per-post toggle, on every page type"
 
-HERO=$(fetch 'ls-page-hero' || true)
+HERO=$(fetch 'lc-page-hero' || true)
 
-[ -n "${HERO}" ] || err "empty response for ls-page-hero — every assertion in this section is presence/absence against the body and would pass vacuously."
+[ -n "${HERO}" ] || err "empty response for lc-page-hero — every assertion in this section is presence/absence against the body and would pass vacuously."
 
 case "${HERO}" in
-    *'</html>'*) ok "ls-page-hero is a complete HTML document ($(printf '%s' "${HERO}" | wc -c) bytes)" ;;
-    *) err 'ls-page-hero response is not complete HTML — refusing to assert against a truncated body' ;;
+    *'</html>'*) ok "lc-page-hero is a complete HTML document ($(printf '%s' "${HERO}" | wc -c) bytes)" ;;
+    *) err 'lc-page-hero response is not complete HTML — refusing to assert against a truncated body' ;;
 esac
 
 # Liveness precondition, same discipline as the loop-card check in section 6 and
@@ -664,8 +664,8 @@ esac
 # that has nothing to do with the behaviour under test. The element's own block
 # content is the marker — it renders only when the element is live.
 case "${HERO}" in
-    *'ls-page-hero-element'*) ok 'Page Hero element is live on ls-page-hero (its block content renders)' ;;
-    *) err 'ls-el-page-hero is not applying to ls-page-hero — the relocation under test is not happening, so the assertion below would pass vacuously. Most likely the element carries no _generate_hook, which makes GP return before registering it at all (inert from v1 to v6). Reseed layout-states at v7+.' ;;
+    *'lc-page-hero-element'*) ok 'Page Hero element is live on lc-page-hero (its block content renders)' ;;
+    *) err 'lc-el-page-hero is not applying to lc-page-hero — the relocation under test is not happening, so the assertion below would pass vacuously. Most likely the element carries no _generate_hook, which makes GP return before registering it at all (inert from v1 to v6). Reseed layout-conditions at v7+.' ;;
 esac
 
 case "${HERO}" in
@@ -674,15 +674,15 @@ case "${HERO}" in
 esac
 
 # Liveness for THIS one is proven in a different suite, deliberately: `verify.php`
-# §6 bootstraps a real archive query and asserts ls-el-layout-featured-archive
-# applies to /department/sales/. There is no marker for it in the response —
+# §6 bootstraps a real archive query and asserts lc-el-layout-featured-archive
+# applies to /category/lc-archive/. There is no marker for it in the response —
 # the element carries only a disable toggle and renders nothing of its own, so
 # unlike the hero above it cannot announce itself here. Run the two together;
 # this absence check is only meaningful downstream of that one. B6 is why the
 # §6 check exists at all — that fixture matched no request for three blueprint
 # versions.
 case "${ARCHIVE}" in
-    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on /department/sales/ — the non-singular Layout Element replay is still running. V21 removes it: off singular the rule is a constant, because its only source is the per-post metabox and that layer cannot apply to an archive.' ;;
+    *'gp-no-featured-image'*) bad 'gp-no-featured-image emitted on /category/lc-archive/ — the non-singular Layout Element replay is still running. V21 removes it: off singular the rule is a constant, because its only source is the per-post metabox and that layer cannot apply to an archive.' ;;
     *) ok 'V21: no gp-no-featured-image on the archive (inverted — the V22/T8 replay branch emitted it)' ;;
 esac
 
@@ -693,7 +693,7 @@ esac
 # position such that the old probe missed on every singular page (V33).
 case "${FEATURED}" in
     *'gp-no-featured-image'*) ok 'control: gp-no-featured-image IS emitted for the per-post metabox toggle (the rule'"'"'s only source)' ;;
-    *) bad 'gp-no-featured-image MISSING on ls-page-metabox-featured — the per-post toggle is no longer detected, and it is the rule'"'"'s only source. The absence assertions above prove nothing without this.' ;;
+    *) bad 'gp-no-featured-image MISSING on lc-page-metabox-featured — the per-post toggle is no longer detected, and it is the rule'"'"'s only source. The absence assertions above prove nothing without this.' ;;
 esac
 
 case "${BASELINE}" in
@@ -712,13 +712,13 @@ esac
 #
 # Every fixture in the table below carries the same three blocks, verbatim:
 #
-#   ls-marker-control        no condition        — proves the content rendered
-#   ls-marker-image-active   featured_image_active         is
-#   ls-marker-slot-active    featured_image_slot_active    is
+#   lc-marker-control        no condition        — proves the content rendered
+#   lc-marker-image-active   featured_image_active         is
+#   lc-marker-slot-active    featured_image_slot_active    is
 #
 # so a difference between two rows is attributable to the RULE and to nothing
 # else. On the four singular rows they live in the page's own post_content; on
-# the archive, which has none, they come from ls-el-block-archive-markers on
+# the archive, which has none, they come from lc-el-block-archive-markers on
 # `generate_before_main_content`. Both are workflows an author has (a block in a
 # page, a hook Block Element on an archive), which is the point.
 #
@@ -726,13 +726,13 @@ esac
 # reason the slot rule exists (V34) is that they come apart:
 #
 #   fixture                     post setting   theme slot
-#   ls-page-baseline            active         active
-#   ls-page-metabox-featured    DISABLED       not active
-#   ls-page-hero                active         not active   (relocation)
-#   ls-page-featured-kill       active         not active   (kill switch)
-#   /department/sales/          active         not active   (off singular)
+#   lc-page-baseline            active         active
+#   lc-page-metabox-featured    DISABLED       not active
+#   lc-page-hero                active         not active   (relocation)
+#   lc-page-featured-kill       active         not active   (kill switch)
+#   /category/lc-archive/          active         not active   (off singular)
 #
-# ls-page-featured-kill is new at v8 and is the case nothing covered: a Layout
+# lc-page-featured-kill is new at v8 and is the case nothing covered: a Layout
 # Element switches the image off on a singular page and NOTHING draws one in its
 # place. Every other route to "slot not active" pairs the removal with a hero or
 # a Content Template, so until now the rule's reason for existing was untested.
@@ -744,7 +744,7 @@ esac
 # The row that is MISSING from the table is asserted too, not omitted: "post
 # setting disabled, slot active" is unreachable by construction (this plugin
 # removes the five callbacks the slot rule reads at wp:60 whenever the toggle is
-# set, and the Detector first resolves later). ls-page-metabox-featured is the
+# set, and the Detector first resolves later). lc-page-metabox-featured is the
 # only page where the toggle is set, so it is the only place that combination
 # could appear, and the slot marker's absence there is what says it does not.
 #
@@ -756,21 +756,20 @@ esac
 #     This is B9's lesson applied before the fact.
 #   * The baseline row. Both markers must be PRESENT there, or a condition
 #     system that hid everything would pass all eight absence checks.
-#   * The thumbnail. Proven from the response, not assumed: the featured image's
-#     URL leaks into og:image/twitter:image from post meta whether or not the
-#     image renders (the same fact that made a filename grep wrong for section
-#     2's absence check — here it is exactly what is wanted).
+#   * The thumbnail. Proven from the response, not assumed: core's post_class()
+#     puts has-post-thumbnail on the article from post meta whether or not the
+#     image renders.
 # ---------------------------------------------------------------------------
 echo ""
 echo "9. issue #5 — post setting vs theme slot, via conditioned blocks"
 
-KILL=$(fetch 'ls-page-featured-kill' || true)
+KILL=$(fetch 'lc-page-featured-kill' || true)
 
-[ -n "${KILL}" ] || err "empty response for ls-page-featured-kill — reseed layout-states at blueprint v8+. Every assertion in this section would pass vacuously."
+[ -n "${KILL}" ] || err "empty response for lc-page-featured-kill — reseed layout-conditions. Every assertion in this section would pass vacuously."
 
 case "${KILL}" in
-    *'</html>'*) ok "ls-page-featured-kill is a complete HTML document ($(printf '%s' "${KILL}" | wc -c) bytes)" ;;
-    *) err 'ls-page-featured-kill response is not complete HTML — refusing to assert against a truncated body' ;;
+    *'</html>'*) ok "lc-page-featured-kill is a complete HTML document ($(printf '%s' "${KILL}" | wc -c) bytes)" ;;
+    *) err 'lc-page-featured-kill response is not complete HTML — refusing to assert against a truncated body' ;;
 esac
 
 # The thumbnails, read from the response rather than trusted. GP renders no
@@ -779,44 +778,42 @@ esac
 # pages the Hero and the kill switch never touched. Both are checked, because both
 # assert the absence of a wrapper GP would otherwise draw.
 #
-# The marker is the attachment filename, which reaches the response through the
-# SEO plugin's og:image/twitter:image from post meta whether or not the image
-# renders. That is the same fact that made a filename grep the WRONG marker for
-# section 2's absence check — here it is exactly what is wanted, and it is the
-# only way to see a thumbnail on a page that is not rendering it. verify.php §8
-# checks the cause (has_post_thumbnail); this checks it reached the request.
-for pair in 'KILL:ls-page-featured-kill' 'HERO:ls-page-hero'; do
+# The marker is core's has-post-thumbnail post class, which follows post meta
+# whether or not the image renders and needs no other plugin. Matched as a class
+# token so a CSS selector in the head cannot satisfy it. verify.php §8 checks the
+# cause (has_post_thumbnail); this checks it reached the request.
+for pair in 'KILL:lc-page-featured-kill' 'HERO:lc-page-hero'; do
     var="${pair%%:*}"
     label="${pair#*:}"
     body="${!var}"
 
     case "${body}" in
-        *'ls-fixture-image'*) ok "${label} has a featured image in its post meta (SEO tags carry the URL) — GP would draw one here if nothing removed the callbacks" ;;
-        *) err "${label} carries no featured image — reseed layout-states at v8+. The \"GP draws nothing here\" assertion below would pass against a page that renders no image under any configuration." ;;
+        *[\"\ ]has-post-thumbnail[\"\ ]*) ok "${label} has a featured image in its post meta (has-post-thumbnail post class) — GP would draw one here if nothing removed the callbacks" ;;
+        *) err "${label} carries no featured image — reseed layout-conditions. The \"GP draws nothing here\" assertion below would pass against a page that renders no image under any configuration." ;;
     esac
 done
 
 # Liveness for all five rows. Hard-abort, not FAIL: a row whose content never
 # rendered invalidates that row entirely rather than producing one bad result.
-for pair in 'BASELINE:ls-page-baseline' 'FEATURED:ls-page-metabox-featured' 'HERO:ls-page-hero' 'KILL:ls-page-featured-kill' 'ARCHIVE:/department/sales/'; do
+for pair in 'BASELINE:lc-page-baseline' 'FEATURED:lc-page-metabox-featured' 'HERO:lc-page-hero' 'KILL:lc-page-featured-kill' 'ARCHIVE:/category/lc-archive/'; do
     var="${pair%%:*}"
     label="${pair#*:}"
     body="${!var}"
 
     case "${body}" in
-        *'ls-marker-control'*) ok "${label}: unconditioned marker renders (the row's content reached the response)" ;;
-        *) err "${label} does not render ls-marker-control, so nothing on this page is conditioned on anything and every absence check below would pass vacuously. On the four pages the markers live in post_content — reseed layout-states at v8+. On the archive they come from ls-el-block-archive-markers; check its _generate_hook and its taxonomy:department/sales display condition." ;;
+        *'lc-marker-control'*) ok "${label}: unconditioned marker renders (the row's content reached the response)" ;;
+        *) err "${label} does not render lc-marker-control, so nothing on this page is conditioned on anything and every absence check below would pass vacuously. On the four pages the markers live in post_content — reseed layout-conditions. On the archive they come from lc-el-block-archive-markers; check its _generate_hook and its taxonomy:category lc-archive display condition." ;;
     esac
 done
 
 # --- Row 1: baseline. Both rules active. The control for all eight absences. ---
 case "${BASELINE}" in
-    *'ls-marker-image-active'*) ok 'baseline: block conditioned on featured_image_active RENDERS (nothing is switched off)' ;;
+    *'lc-marker-image-active'*) ok 'baseline: block conditioned on featured_image_active RENDERS (nothing is switched off)' ;;
     *) bad 'baseline: the featured_image_active block is MISSING on a page with nothing configured. Every absence assertion below is read against this — if the marker cannot render here, they prove nothing.' ;;
 esac
 
 case "${BASELINE}" in
-    *'ls-marker-slot-active'*) ok 'baseline: block conditioned on featured_image_slot_active RENDERS (GP is drawing the image)' ;;
+    *'lc-marker-slot-active'*) ok 'baseline: block conditioned on featured_image_slot_active RENDERS (GP is drawing the image)' ;;
     *) bad 'baseline: the featured_image_slot_active block is MISSING while GP demonstrably draws the image here (section 0 pins the blog path live). The slot rule is reading false on a page where the slot is active — check the five callbacks in is_featured_image_slot_active() against the live render path.' ;;
 esac
 
@@ -825,24 +822,24 @@ esac
 # block, on a page differing from the baseline only by the Disable Elements
 # checkbox, stops rendering.
 case "${FEATURED}" in
-    *'ls-marker-image-active'*) bad 'metabox page: the featured_image_active block STILL RENDERS with the per-post toggle ON. This is the plugin failing at its stated job — the toggle is set, the rule reports the image active, and a block conditioned on it is not hidden. Check is_featured_image_disabled() and that _generate-disable-post-image is set on this fixture.' ;;
+    *'lc-marker-image-active'*) bad 'metabox page: the featured_image_active block STILL RENDERS with the per-post toggle ON. This is the plugin failing at its stated job — the toggle is set, the rule reports the image active, and a block conditioned on it is not hidden. Check is_featured_image_disabled() and that _generate-disable-post-image is set on this fixture.' ;;
     *) ok 'metabox page: the featured_image_active block is HIDDEN by the per-post toggle (the authoring workflow, end to end)' ;;
 esac
 
 # The unreachable combination, asserted rather than omitted (V34).
 case "${FEATURED}" in
-    *'ls-marker-slot-active'*) bad 'metabox page: the featured_image_slot_active block renders while the per-post toggle is ON — that is the combination V34 documents as UNREACHABLE. The nesting is enforced by mechanism, not by a guard: this plugin removes the five image callbacks at wp:60 when the toggle is set, and the Detector resolves later. If this fires, the wp:60 suppression did not run (see section 2, which reads the same failure as a rendered image).' ;;
+    *'lc-marker-slot-active'*) bad 'metabox page: the featured_image_slot_active block renders while the per-post toggle is ON — that is the combination V34 documents as UNREACHABLE. The nesting is enforced by mechanism, not by a guard: this plugin removes the five image callbacks at wp:60 when the toggle is set, and the Detector resolves later. If this fires, the wp:60 suppression did not run (see section 2, which reads the same failure as a rendered image).' ;;
     *) ok 'unreachable combination confirmed: post setting disabled => slot NOT active (V34 nesting holds on a real request)' ;;
 esac
 
 # --- Row 3: Page Hero relocation. The two rules come apart. -----------------
 case "${HERO}" in
-    *'ls-marker-image-active'*) ok 'hero page: featured_image_active block RENDERS — a relocation is not a disable (V21)' ;;
+    *'lc-marker-image-active'*) ok 'hero page: featured_image_active block RENDERS — a relocation is not a disable (V21)' ;;
     *) bad 'hero page: the featured_image_active block is hidden under a Page Hero. The rule is reading the relocation as a disable, which is the pre-closure hook-state behaviour one layer out — a block that should render is being conditioned away.' ;;
 esac
 
 case "${HERO}" in
-    *'ls-marker-slot-active'*) bad 'hero page: the featured_image_slot_active block renders while the Page Hero has removed GP'"'"'s image callbacks. The slot rule is reporting a slot that is not there — which is the duplicate-image case it exists to prevent.' ;;
+    *'lc-marker-slot-active'*) bad 'hero page: the featured_image_slot_active block renders while the Page Hero has removed GP'"'"'s image callbacks. The slot rule is reporting a slot that is not there — which is the duplicate-image case it exists to prevent.' ;;
     *) ok 'hero page: featured_image_slot_active block is HIDDEN — GP is not drawing the image, the Hero is' ;;
 esac
 
@@ -855,12 +852,12 @@ esac
 
 # --- Row 4: the kill switch. The case nothing covered. ----------------------
 case "${KILL}" in
-    *'ls-marker-image-active'*) ok 'kill-switch page: featured_image_active block RENDERS — the Layout Element key is not read as a post-level disable (V21)' ;;
+    *'lc-marker-image-active'*) ok 'kill-switch page: featured_image_active block RENDERS — the Layout Element key is not read as a post-level disable (V21)' ;;
     *) bad 'kill-switch page: the featured_image_active block is hidden. The rule is reading _generate_disable_featured_image from a Layout Element, which V21 removed: that key is a relocation mechanism, so reading it conditions blocks away on pages whose author never switched anything off.' ;;
 esac
 
 case "${KILL}" in
-    *'ls-marker-slot-active'*) bad 'kill-switch page: the featured_image_slot_active block renders while a Layout Element has removed all five of GP'"'"'s image callbacks. This is the ONE case the slot rule exists for, and it is answering wrong.' ;;
+    *'lc-marker-slot-active'*) bad 'kill-switch page: the featured_image_slot_active block renders while a Layout Element has removed all five of GP'"'"'s image callbacks. This is the ONE case the slot rule exists for, and it is answering wrong.' ;;
     *) ok 'kill-switch page: featured_image_slot_active block is HIDDEN — the case the slot rule exists for, observed for the first time (issue #5)' ;;
 esac
 
@@ -882,12 +879,12 @@ esac
 
 # --- Row 5: the archive. Off singular the slot is a constant false. ---------
 case "${ARCHIVE}" in
-    *'ls-marker-image-active'*) ok 'archive: featured_image_active block RENDERS — the post-setting rule is a constant true off singular (V21)' ;;
-    *) bad 'archive: the featured_image_active block is hidden on /department/sales/. The per-post metabox layer cannot apply off singular (V3), so the rule must report active there; this is the reversed V22/T8 replay branch coming back.' ;;
+    *'lc-marker-image-active'*) ok 'archive: featured_image_active block RENDERS — the post-setting rule is a constant true off singular (V21)' ;;
+    *) bad 'archive: the featured_image_active block is hidden on /category/lc-archive/. The per-post metabox layer cannot apply off singular (V3), so the rule must report active there; this is the reversed V22/T8 replay branch coming back.' ;;
 esac
 
 case "${ARCHIVE}" in
-    *'ls-marker-slot-active'*) bad 'archive: the featured_image_slot_active block renders off singular. GP'"'"'s singular image slot does not exist on an archive, so the rule is a constant false there (V34 part 3) — item images inside loop cards are a different, item-level surface and out of remit.' ;;
+    *'lc-marker-slot-active'*) bad 'archive: the featured_image_slot_active block renders off singular. GP'"'"'s singular image slot does not exist on an archive, so the rule is a constant false there (V34 part 3) — item images inside loop cards are a different, item-level surface and out of remit.' ;;
     *) ok 'archive: featured_image_slot_active block is HIDDEN — the singular slot does not exist off singular (V34)' ;;
 esac
 

@@ -37,7 +37,7 @@ Two reasons, and only the first is defended against in the file. The Detector me
 
 Every rule reports **configuration, never render** (V7). "Slot active" means GP has its featured-image callbacks attached — not that an image appears. The sharp case is a Content Template, which removes the *call site* rather than the callback (V34 part 5c, GitHub #7): this tool will report the slot active on a page showing no image at all.
 
-So when these verdicts disagree with the page in front of you, that gap is the first thing to check, and only the response body settles it. For claims about what a page emits, use `tools/fixtures/layout-states/render-surface.sh` or fetch the page — see the test-surface table in `CONTEXT.md` for which surface can see what.
+So when these verdicts disagree with the page in front of you, that gap is the first thing to check, and only the response body settles it. For claims about what a page emits, use `tools/fixtures/layout-conditions/render-surface.sh` or fetch the page — see the test-surface table in `CONTEXT.md` for which surface can see what.
 
 ### Running against a real clone
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * layout-states — V2 poisoned-signal proof (T13).
+ * layout-conditions — V2 poisoned-signal proof (T13).
  *
  * Proves the observation V2 rests on: a Block Element assigned to
  * generate_header / generate_footer UNCONDITIONALLY remove_action()s the native
@@ -17,9 +17,9 @@
  * reading hook state for header/footer.
  *
  * Run:
- *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/poisoned-signal.php
+ *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-conditions/poisoned-signal.php
  *
- * Preconditions: layout-states seeded. Takes no --url — bootstraps its own
+ * Preconditions: layout-conditions seeded. Takes no --url — bootstraps its own
  * query per arm, same as verify.php / seam-fidelity.php.
  *
  * ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@
  * teardown under wp-cli the way there is under HTTP.
  *
  * So the unpoisoned control MUST be asserted first, before anything visits
- * ls-page-poisoned. Reordering the sections silently turns the control arm into
+ * lc-page-poisoned. Reordering the sections silently turns the control arm into
  * a tautology (it would observe the already-removed hook and "pass" the wrong
  * way). Section 1 therefore runs first, and section 2 re-asserts the hooks were
  * still present immediately before it poisons them, so an ordering mistake
@@ -111,7 +111,7 @@ $constructs = array(
 );
 
 WP_CLI::log( '' );
-WP_CLI::log( 'layout-states V2 poisoned-signal proof (T13)' );
+WP_CLI::log( 'layout-conditions V2 poisoned-signal proof (T13)' );
 WP_CLI::log( '' );
 
 // ---------------------------------------------------------------------------
@@ -123,20 +123,20 @@ WP_CLI::log( '' );
 // ---------------------------------------------------------------------------
 WP_CLI::log( '0. Preconditions' );
 
-$page_baseline = $by_name( 'page', 'ls-page-baseline' );
-$page_poisoned = $by_name( 'page', 'ls-page-poisoned' );
-$el_header     = $by_name( 'gp_elements', 'ls-el-header-block' );
-$el_footer     = $by_name( 'gp_elements', 'ls-el-footer-block' );
+$page_baseline = $by_name( 'page', 'lc-page-baseline' );
+$page_poisoned = $by_name( 'page', 'lc-page-poisoned' );
+$el_header     = $by_name( 'gp_elements', 'lc-el-header-block' );
+$el_footer     = $by_name( 'gp_elements', 'lc-el-footer-block' );
 
 foreach ( array(
-	'ls-page-baseline'  => $page_baseline,
-	'ls-page-poisoned'  => $page_poisoned,
-	'ls-el-header-block' => $el_header,
-	'ls-el-footer-block' => $el_footer,
+	'lc-page-baseline'  => $page_baseline,
+	'lc-page-poisoned'  => $page_poisoned,
+	'lc-el-header-block' => $el_header,
+	'lc-el-footer-block' => $el_footer,
 ) as $slug => $id ) {
 	$id
 		? $ok( "{$slug} present (#{$id})" )
-		: $bad( "{$slug} MISSING — seed layout-states first; every assertion below is vacuous" );
+		: $bad( "{$slug} MISSING — seed layout-conditions first; every assertion below is vacuous" );
 }
 
 if ( $fail ) {
@@ -144,7 +144,7 @@ if ( $fail ) {
 }
 
 // The poisoning fixtures must carry NO disable meta. That is the whole point:
-// any "disabled" reading taken off ls-page-poisoned is a false positive by
+// any "disabled" reading taken off lc-page-poisoned is a false positive by
 // construction. If someone adds disable meta to these elements the test would
 // still go green while proving nothing.
 foreach ( array( $el_header, $el_footer ) as $el_id ) {
@@ -166,7 +166,7 @@ $env->can_replay_conditions()
 	: $bad( 'can_replay_conditions() FALSE — Elements module off; elements never instantiate and nothing below is meaningful' );
 
 // ---------------------------------------------------------------------------
-// 1. THE CONTROL — must run before anything touches ls-page-poisoned.
+// 1. THE CONTROL — must run before anything touches lc-page-poisoned.
 //
 // On a page carrying no header/footer Block Element, the native constructs are
 // attached. Without this arm a bug that removes them globally (or an upstream
@@ -174,7 +174,7 @@ $env->can_replay_conditions()
 // wrong reason.
 // ---------------------------------------------------------------------------
 WP_CLI::log( '' );
-WP_CLI::log( '1. Unpoisoned control (ls-page-baseline) — native constructs attached' );
+WP_CLI::log( '1. Unpoisoned control (lc-page-baseline) — native constructs attached' );
 
 $baseline_hooks = $with_query( 'page_id=' . $page_baseline, function () use ( $env, $constructs ) {
 	$seen = array();
@@ -210,7 +210,7 @@ false === $baseline_states['footer']
 // ---------------------------------------------------------------------------
 // 2. THE POISON.
 //
-// Visiting ls-page-poisoned instantiates the two Block Elements. Their display
+// Visiting lc-page-poisoned instantiates the two Block Elements. Their display
 // conditions resolve (the query is bootstrapped), the hook resolves to
 // generate_header / generate_footer, and class-block.php:169-175 strips the
 // native construct — with no disable meta anywhere in the picture.
@@ -219,7 +219,7 @@ false === $baseline_states['footer']
 // site whose native header/footer constructs are gone.
 // ---------------------------------------------------------------------------
 WP_CLI::log( '' );
-WP_CLI::log( '2. Poisoned request (ls-page-poisoned) — Block Element strips the native construct' );
+WP_CLI::log( '2. Poisoned request (lc-page-poisoned) — Block Element strips the native construct' );
 
 // Re-assert immediately before poisoning. If sections were reordered, or an
 // earlier edit visited the poisoned page, this catches it instead of letting
@@ -292,13 +292,13 @@ false === $poisoned_states['footer']
 
 // Positive control on the config-replay path itself. If config-replay had
 // degraded to "always active" the two assertions above would pass for the wrong
-// reason. ls-page-layout-disabled genuinely disables header + footer via a
+// reason. lc-page-layout-disabled genuinely disables header + footer via a
 // Layout Element, so the Detector must report BOTH disabled there.
 //
 // Safe to run after the poisoning: config-replay reads meta, not hook state,
 // so the stripped constructs do not affect it. That independence is itself the
 // point being demonstrated.
-$page_disabled = $by_name( 'page', 'ls-page-layout-disabled' );
+$page_disabled = $by_name( 'page', 'lc-page-layout-disabled' );
 
 if ( $page_disabled ) {
 	$disabled_states = $with_query( 'page_id=' . $page_disabled, function () {
@@ -308,14 +308,14 @@ if ( $page_disabled ) {
 	} );
 
 	true === $disabled_states['header']
-		? $ok( 'Detector reports header DISABLED on ls-page-layout-disabled (config-replay still discriminates)' )
-		: $bad( 'Detector reports header active on ls-page-layout-disabled — config-replay has degraded to always-active, so the assertions above prove nothing' );
+		? $ok( 'Detector reports header DISABLED on lc-page-layout-disabled (config-replay still discriminates)' )
+		: $bad( 'Detector reports header active on lc-page-layout-disabled — config-replay has degraded to always-active, so the assertions above prove nothing' );
 
 	true === $disabled_states['footer']
-		? $ok( 'Detector reports footer DISABLED on ls-page-layout-disabled (config-replay still discriminates)' )
-		: $bad( 'Detector reports footer active on ls-page-layout-disabled — config-replay has degraded to always-active, so the assertions above prove nothing' );
+		? $ok( 'Detector reports footer DISABLED on lc-page-layout-disabled (config-replay still discriminates)' )
+		: $bad( 'Detector reports footer active on lc-page-layout-disabled — config-replay has degraded to always-active, so the assertions above prove nothing' );
 } else {
-	$bad( 'ls-page-layout-disabled MISSING — cannot prove config-replay still discriminates' );
+	$bad( 'lc-page-layout-disabled MISSING — cannot prove config-replay still discriminates' );
 }
 
 // ---------------------------------------------------------------------------

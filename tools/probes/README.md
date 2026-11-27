@@ -14,7 +14,7 @@ Both exist on purpose. A report cannot fail a build, and an assertion tells you 
 
 ## Why the canary exists
 
-This testbed tracks GB/GP **betas** — it is a lookahead environment, not a production mirror. Upstream moves under it without warning. The baseline every suite has been run against is recorded under [Verification baseline](#verification-baseline).
+Upstream moves without warning: a version update on any site can change the surface this plugin binds to. The suite's site is updated by hand and assumes no beta channel. The baseline every suite has been run against is recorded under [Verification baseline](#verification-baseline).
 
 The failure mode that motivated it: `GenerateBlocks_Pro_Conditions_Registry::register()` validates that the class implements `GenerateBlocks_Pro_Condition_Interface` and, if it does not, **returns `false`**. No exception, no notice, no log line. Add a method to that interface upstream and both of this plugin's conditions simply stop appearing in the GB Pro UI, with nothing anywhere saying why.
 
@@ -56,4 +56,6 @@ Preconditions: GB Pro and GP Premium active with the Elements module on. Absent 
 
 T12–T14 and everything after were run against **GB Pro 2.7.0-beta.1 / GP Premium 2.5.6**. **Revalidated 2026-10-23 against GB Pro 2.8.0 / GB 2.5.0 / GP Premium 2.5.6 / GP 3.6.1**: every suite green (canary 59, verify 67, seam 28, poisoned 20, render 67, unit 58). The condition files the plugin binds to changed only in whitespace from 2.7.1, whose sole conditions change was the REST controller; `block-conditions.php` is unchanged. The render harness needed one fix, unrelated to GB: WooCommerce on testbed makes GP Premium inline `.woocommerce .page-header-image-single` CSS in `<head>`, which the bare-substring image match read as markup, so the match is now a class token. The testbed tracks GB/GP betas deliberately — it is a lookahead environment, not a production mirror, which is what the T14 drift canary exists for.
 
-Operational lessons from T11/T21 that belong to no invariant — opcache staleness, one page per process, running against a real clone — are in [`tools/fixtures/layout-states/README.md`](../fixtures/layout-states/README.md) and [`tools/inspect/README.md`](../inspect/README.md).
+**2026-11-27, on the `layout-conditions` site**, against GB Pro 2.8.0 / GB 2.5.1 / GP Premium 2.5.6 / GP 3.6.1: every suite green (canary 59, verify 67, seam 28, poisoned 20, render 67, unit 58).
+
+Operational lessons from T11/T21 that belong to no invariant — opcache staleness, one page per process, running against a real clone — are in [`tools/fixtures/layout-conditions/README.md`](../fixtures/layout-conditions/README.md) and [`tools/inspect/README.md`](../inspect/README.md).

@@ -1,19 +1,16 @@
 <?php
 /**
- * layout-states blueprint — seed applier.
+ * layout-conditions blueprint — seed applier.
  *
  * Idempotent: reads manifest.php, upserts by fixture slug (post_name). Safe to
  * re-run.
  *
- * Compose order: run core-structures seed FIRST — the V22 archive fixture
- * asserts against its `department` taxonomy (manifest `foreign_dependencies`).
- *
  * Run (from the wp-litespeed env; path shown is the container mount):
- *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-states/seed.php
+ *   bin/wp.sh <site> eval-file /plugins/bws-generate-layout-conditions/tools/fixtures/layout-conditions/seed.php
  *
  * No schema.php and no mu-plugin stub: every post type and meta key this
- * blueprint writes is registered by GP Premium, so there is nothing of our own
- * to keep alive across a snapshot restore.
+ * blueprint writes is registered by core, GP Premium or GB Pro, so there is
+ * nothing of our own to keep alive across a snapshot restore.
  *
  * REQUIRES the GP Premium Elements module active. GP Premium ships every
  * module OFF (gated on `generate_package_*` === 'activated'), and with Elements
@@ -31,29 +28,12 @@ define( 'BWS_FIXTURE_SEEDING', true );
 
 $manifest = require __DIR__ . '/manifest.php';
 $log      = function ( $msg ) {
-	WP_CLI::log( '[layout-states] ' . $msg );
+	WP_CLI::log( '[layout-conditions] ' . $msg );
 };
 
 // ---------------------------------------------------------------------------
-// 0. Compose check + environment preconditions.
+// 0. Environment preconditions.
 // ---------------------------------------------------------------------------
-if ( ! taxonomy_exists( 'department' ) ) {
-	WP_CLI::error( 'core-structures blueprint not loaded (department taxonomy missing). Seed it first.' );
-}
-$core_manifest_path = dirname( __DIR__, 4 ) . '/bws-gb-dynamic-tags-extensions/tools/fixtures/core-structures/manifest.php';
-if ( ! file_exists( $core_manifest_path ) ) {
-	WP_CLI::error( 'core-structures manifest not found at ' . $core_manifest_path );
-}
-$core_manifest = require $core_manifest_path;
-$min_core      = (int) ( $manifest['composes_on']['min_version'] ?? 0 );
-if ( (int) $core_manifest['version'] < $min_core ) {
-	WP_CLI::error( sprintf(
-		'core-structures manifest v%d < pinned min v%d — update the pin or reseed against a newer core.',
-		$core_manifest['version'],
-		$min_core
-	) );
-}
-
 // GP Premium modules. Hard error, not a warning: a fixture set that silently
 // does nothing is worse than no fixture set.
 $inactive = array();
@@ -102,7 +82,7 @@ if ( ! generateblocks_pro_block_conditions_enabled() ) {
 	WP_CLI::error( 'GB Pro block conditions are DISABLED (generateblocks_get_option enable_block_conditions === false). Every conditioned marker block would render unconditionally.' );
 }
 
-$log( 'preconditions OK (core-structures v' . $core_manifest['version'] . ', GP Premium modules active, GB Pro conditions available)' );
+$log( 'preconditions OK (GP Premium modules active, GB Pro conditions available)' );
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -199,7 +179,7 @@ $write_meta = function ( $post_id, array $meta, array $owned_prefixes = array() 
  * reused; returns its ID.
  *
  * Generates its own 1x1 PNG rather than depending on a file in the repo or on
- * core-structures' media: the render harness only needs a thumbnail to EXIST so
+ * another blueprint's media: the render harness only needs a thumbnail to EXIST so
  * GP emits .page-header-image-single. What the pixels are is irrelevant, and a
  * self-contained fixture cannot be broken by another blueprint's reseed.
  *
@@ -209,7 +189,7 @@ $write_meta = function ( $post_id, array $meta, array $owned_prefixes = array() 
 $ensure_attachment = function () use ( $log ) {
 	$existing = get_posts( array(
 		'post_type'      => 'attachment',
-		'name'           => 'ls-fixture-image',
+		'name'           => 'lc-fixture-image',
 		'post_status'    => 'inherit',
 		'posts_per_page' => 1,
 		'fields'         => 'ids',
@@ -224,7 +204,7 @@ $ensure_attachment = function () use ( $log ) {
 		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 	);
 
-	$uploaded = wp_upload_bits( 'ls-fixture-image.png', null, $png );
+	$uploaded = wp_upload_bits( 'lc-fixture-image.png', null, $png );
 
 	if ( ! empty( $uploaded['error'] ) ) {
 		WP_CLI::error( 'could not write fixture image: ' . $uploaded['error'] );
@@ -232,8 +212,8 @@ $ensure_attachment = function () use ( $log ) {
 
 	$id = wp_insert_attachment(
 		array(
-			'post_title'     => 'LS: Fixture Image',
-			'post_name'      => 'ls-fixture-image',
+			'post_title'     => 'LC: Fixture Image',
+			'post_name'      => 'lc-fixture-image',
 			'post_mime_type' => 'image/png',
 			'post_status'    => 'inherit',
 		),
@@ -247,7 +227,7 @@ $ensure_attachment = function () use ( $log ) {
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $uploaded['file'] ) );
 
-	$log( sprintf( 'attachment %-32s #%d (fixture image)', 'ls-fixture-image', $id ) );
+	$log( sprintf( 'attachment %-32s #%d (fixture image)', 'lc-fixture-image', $id ) );
 
 	return (int) $id;
 };
@@ -318,6 +298,35 @@ $resolve_content = function ( $content ) use ( &$condition_ids ) {
 };
 
 // ---------------------------------------------------------------------------
+// 0c. Own archive term and post — elements reference the term ID.
+// ---------------------------------------------------------------------------
+foreach ( $manifest['terms'] as $term ) {
+	if ( ! term_exists( $term['slug'], $term['taxonomy'] ) ) {
+		$created = wp_insert_term( $term['name'], $term['taxonomy'], array( 'slug' => $term['slug'] ) );
+
+		if ( is_wp_error( $created ) ) {
+			WP_CLI::error( 'could not create term ' . $term['slug'] . ': ' . $created->get_error_message() );
+		}
+	}
+
+	$log( 'term ' . $term['taxonomy'] . ':' . $term['slug'] );
+}
+
+foreach ( $manifest['posts'] as $slug => $post ) {
+	$id = $upsert( 'post', $post['post_name'], array( 'post_title' => $post['post_title'] ) );
+
+	foreach ( $post['terms'] as $taxonomy => $term_slugs ) {
+		$assigned = wp_set_object_terms( $id, $term_slugs, $taxonomy );
+
+		if ( is_wp_error( $assigned ) ) {
+			WP_CLI::error( 'could not assign terms to ' . $slug . ': ' . $assigned->get_error_message() );
+		}
+	}
+
+	$log( sprintf( 'post %-32s #%d', $slug, $id ) );
+}
+
+// ---------------------------------------------------------------------------
 // 1. Pages next — elements reference them by ID in display conditions.
 // ---------------------------------------------------------------------------
 $page_ids = array();
@@ -373,10 +382,10 @@ foreach ( $manifest['pages'] as $slug => $page ) {
  * THE TERM FORM IS NOT COSMETIC. `get_current_location()` resolves a taxonomy
  * archive to rule `taxonomy:{taxonomy}` with object = **`$queried_object->term_id`**
  * (class-conditions.php:225-231) — never the slug. show_data() then compares with
- * a non-strict `in_array()`, and under PHP 8 `7 == 'sales'` is FALSE, so a
+ * a non-strict `in_array()`, and under PHP 8 `7 == 'slug'` is FALSE, so a
  * slug-valued object silently never matches. That is exactly how the archive
  * fixtures shipped from v1 through v3: seeded, verified, readable, and inert —
- * `ls-el-layout-featured-archive` never once applied to /department/sales/, and
+ * `lc-el-layout-featured-archive` never once applied to its archive, and
  * nothing noticed because no suite evaluated its conditions against a real
  * archive query. verify.php §6 now does (added v4).
  */
@@ -459,7 +468,7 @@ foreach ( $manifest['elements'] as $slug => $element ) {
 // Premium reads generate_menu_plus_settings only through get_option() (~20 call
 // sites, zero get_theme_mod), so the value landed in a row nothing reads and the
 // mobile header stayed at its 'disable' default. V25's subject — the
-// <nav id="mobile-header"> wrapper — therefore never rendered on this testbed,
+// <nav id="mobile-header"> wrapper — therefore never rendered on that site,
 // and any V25 assertion written before v2 would have passed vacuously.
 //
 // Merged, not replaced: GP's Menu Plus settings carry defaults this blueprint
@@ -539,19 +548,19 @@ foreach ( $manifest['nav_menus'] as $slug => $menu ) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Foreign-dependency check.
+// 4. Archive check.
 //
-// V22 needs a POPULATED archive: an empty term archive 404s, and the featured
-// -image config-replay test would then pass without ever running. Warn rather
-// than error — this blueprint does not own the fixture and cannot repair it.
+// The archive checks are absence assertions: an empty term archive satisfies
+// them without anything under test running.
 // ---------------------------------------------------------------------------
-$sales = get_term_by( 'slug', 'sales', 'department' );
-if ( ! $sales ) {
-	WP_CLI::warning( 'department:sales term missing — V22 archive fixture will not resolve. Reseed core-structures.' );
-} elseif ( 0 === (int) $sales->count ) {
-	WP_CLI::warning( 'department:sales has 0 posts — /department/sales/ will 404 and the V22 test would vacuously pass.' );
-} else {
-	$log( sprintf( 'foreign dep OK — department:sales carries %d post(s)', $sales->count ) );
+foreach ( $manifest['terms'] as $term ) {
+	$seeded = get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
+
+	if ( ! $seeded || 0 === (int) $seeded->count ) {
+		WP_CLI::error( sprintf( '%s:%s carries no published post — the archive checks would pass vacuously.', $term['taxonomy'], $term['slug'] ) );
+	}
+
+	$log( sprintf( 'archive OK — %s:%s carries %d post(s)', $term['taxonomy'], $term['slug'], $seeded->count ) );
 }
 
 $log( sprintf(

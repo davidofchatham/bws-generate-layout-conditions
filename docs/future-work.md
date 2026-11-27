@@ -65,15 +65,15 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-5
 
-#### FW-5 — Move the fixtures to a dedicated `layout-conditions` site
+#### FW-5 — Clean the fixtures off the shared testbed
 
-The fixture blueprint's site-wide writes leak into sibling work on the shared testbed. It moves to its own site, takes the name `layout-conditions`, seeds its own archive and leaves the environment's seed family.
+The fixture blueprint moved to its own `layout-conditions` site because its site-wide writes leaked into sibling work. The testbed still holds the old fixtures and settings: the environment removes them and remakes the empty base snapshot, then `core-structures` re-captures its baseline.
 
-Detail home: `.scratch/layout-conditions-site/spec.md`; handoffs to other repos beside it
+Detail home: [`design-history/layout-conditions-site.md`](design-history/layout-conditions-site.md); handoffs to other repos in `.scratch/layout-conditions-site/`
 
-Progress: Spec settled 2026-11-27.
+Progress: Fixtures moved and the suite green on `layout.test`, 2026-11-27. Testbed cleanup pending.
 
-Blocked by: code:the environment has a `layout-conditions` site and its seed family no longer lists `layout-states`  •  Interacts with: FW-1
+Blocked by: code:the environment has cleaned `testbed`  •  Interacts with: FW-1
 
 ### Detection scope
 
