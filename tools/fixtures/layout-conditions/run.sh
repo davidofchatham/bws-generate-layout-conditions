@@ -19,8 +19,8 @@ err(){ echo -e "\033[31m[X]\033[0m ${*}" >&2; exit 1; }
 
 while [ ${#} -gt 0 ]; do
     case "${1}" in
-        -s|--site)  shift; SITE="${1:-}" ;;
-        --env-root) shift; ENV_ROOT="${1:-}" ;;
+        -s|--site)  [ ${#} -ge 2 ] || err "--site needs a value"; shift; SITE="${1}" ;;
+        --env-root) [ ${#} -ge 2 ] || err "--env-root needs a path"; shift; ENV_ROOT="${1}" ;;
         -h|--help)  echo "Usage: run.sh --site <site> [--env-root <path>]"; exit 0 ;;
         *) err "Unknown option: ${1}" ;;
     esac
@@ -31,7 +31,8 @@ done
 [ -d "${ENV_ROOT}" ] || err "env root not found: ${ENV_ROOT} (pass --env-root or set WP_LITESPEED_ROOT)"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Container path of the same working tree: eval-file runs inside the container.
+# eval-file runs inside the container, against the checkout the env mounts there.
+# Run this script from that checkout so all six steps test the same code.
 TOOLS=/plugins/bws-generate-layout-conditions/tools
 
 cd "${ENV_ROOT}"

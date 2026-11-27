@@ -34,6 +34,11 @@ $log      = function ( $msg ) {
 // ---------------------------------------------------------------------------
 // 0. Environment preconditions.
 // ---------------------------------------------------------------------------
+// The render harness fetches pages and the archive by path.
+if ( '' === (string) get_option( 'permalink_structure' ) ) {
+	WP_CLI::error( 'plain permalinks — set a pretty permalink structure before seeding.' );
+}
+
 // GP Premium modules. Hard error, not a warning: a fixture set that silently
 // does nothing is worse than no fixture set.
 $inactive = array();
@@ -468,7 +473,7 @@ foreach ( $manifest['elements'] as $slug => $element ) {
 // Premium reads generate_menu_plus_settings only through get_option() (~20 call
 // sites, zero get_theme_mod), so the value landed in a row nothing reads and the
 // mobile header stayed at its 'disable' default. V25's subject — the
-// <nav id="mobile-header"> wrapper — therefore never rendered on that site,
+// <nav id="mobile-header"> wrapper — therefore never rendered on the earlier shared site,
 // and any V25 assertion written before v2 would have passed vacuously.
 //
 // Merged, not replaced: GP's Menu Plus settings carry defaults this blueprint

@@ -385,7 +385,7 @@ if ( ! class_exists( 'GeneratePress_Conditions' ) ) {
 // The featured image has two render paths. The GP Premium Blog module picks:
 // active, it removes the theme's page-header actions unconditionally at wp:50
 // (blog/functions/images.php:164-165) and renders its own callback instead. The
-// module state was never pinned here, and the site had it OFF — so every
+// module state was never pinned here, and the earlier shared site had it OFF — so every
 // featured-image assertion in this blueprint ran against the theme path alone,
 // and a suppression covering only that path passed green while doing nothing on
 // a Blog-module-active site. That is B8, and it was live on Site H.
@@ -563,7 +563,7 @@ foreach ( $marker_carriers as $label => $carrier_id ) {
 	$content = get_post_field( 'post_content', $carrier_id );
 
 	if ( false !== strpos( $content, '{{condition:' ) ) {
-		$bad( "{$label} still holds an UNRESOLVED {{condition:...}} placeholder — absint() makes it 0, GB Pro reads 0 as 'no condition' and the marker renders unconditionally. Reseed at v8+." );
+		$bad( "{$label} still holds an UNRESOLVED {{condition:...}} placeholder — absint() makes it 0, GB Pro reads 0 as 'no condition' and the marker renders unconditionally. Reseed layout-conditions." );
 		continue;
 	}
 

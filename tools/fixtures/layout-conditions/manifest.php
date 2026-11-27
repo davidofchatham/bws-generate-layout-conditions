@@ -115,7 +115,7 @@ return array(
 		// was an unread variable. The featured image has two render paths and
 		// the Blog module decides which: active, it removes the theme's
 		// page-header actions unconditionally at wp:50 (blog/functions/
-		// images.php:164-165) and renders its own callback instead. The site had
+		// images.php:164-165) and renders its own callback instead. The earlier shared site had
 		// it OFF, so every featured-image assertion in this blueprint was
 		// exercising the theme path only, and the plugin's suppression could
 		// cover half the surface and still pass green (B8). Pinned ON because

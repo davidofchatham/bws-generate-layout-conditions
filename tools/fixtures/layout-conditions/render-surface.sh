@@ -29,14 +29,15 @@
 #   tools/fixtures/layout-conditions/render-surface.sh --site layout-conditions
 #
 # Run from the wp-litespeed env root (it shells out to docker compose there), or
-# pass --env-root. Preconditions: layout-conditions seeded at blueprint v9 — earlier
+# pass --env-root. Preconditions: layout-conditions seeded at blueprint v9 (v8 used the old
+# prefix and a foreign archive) — earlier
 # fixtures cannot support these assertions (v1: no featured image, no nav menus,
 # Menu Plus mobile header never enabled; v2: no thumbnail on the two nav-toggle
 # pages, which makes T10's over-suppression checks vacuous; v3: no archive
 # content-title element, which makes section 6 vacuous; v4: no secondary-nav
 # Layout Element, which makes section 7 vacuous; v5: the GP Premium Blog module
 # unpinned, so the featured-image assertions ran against whichever of the two
-# render paths that the site happened to have live — B8; v6: the Page Hero element
+# render paths that the earlier shared site happened to have live — B8; v6: the Page Hero element
 # carried no _generate_hook and was never loaded, making section 8's relocation
 # assertion vacuous — B9; v7: no conditioned blocks and no kill-switch fixture, so
 # section 9 has nothing to read). The script verifies all of that rather than
@@ -60,7 +61,7 @@
 #     positive assertions were red for the whole life of the plugin until T17.
 #   * Section 8 (V21) is a second inversion pass, on the featured image. The
 #     hero page and the archive both used to emit gp-no-featured-image and must
-#     not now — and so, on the site of that time, did the baseline, which is V33 showing
+#     not now — and so, on the earlier shared site, did the baseline, which is V33 showing
 #     up in the harness rather than a fixture quirk. See the section header.
 #   * Section 9 (issue #5) is a fifth era and a different KIND of assertion. Every
 #     section above reads markup this plugin or GP emits; section 9 reads the
@@ -206,7 +207,7 @@ esac
 # green while the toggle did nothing at all on a Blog-module-active site (B8).
 case "${BASELINE}" in
     *${IMG_CLASS}*) : ;;
-    *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-conditions at v2+.' ;;
+    *) err 'baseline renders no page-header-image wrapper — the path check below would read the whole body and pass for the wrong reason. Reseed layout-conditions.' ;;
 esac
 
 case "${BASELINE%%${IMG_CLASS}*}" in
@@ -216,7 +217,7 @@ esac
 
 case "${BASELINE}" in
     *'id="site-navigation"'*) ok 'baseline renders #site-navigation (nav menu assigned, v2)' ;;
-    *) err 'no #site-navigation on baseline — no menu assigned to the primary location. Reseed layout-conditions at v2+.' ;;
+    *) err 'no #site-navigation on baseline — no menu assigned to the primary location. Reseed layout-conditions.' ;;
 esac
 
 case "${BASELINE}" in
@@ -226,7 +227,7 @@ esac
 
 case "${BASELINE}" in
     *'id="mobile-header"'*) ok 'baseline renders #mobile-header (Menu Plus mobile header ON, v2)' ;;
-    *) err 'no #mobile-header on baseline — generate_menu_plus_settings mobile_header is not enabled. V25 cannot be observed. Reseed layout-conditions at v2+ (v1 wrote this as a theme_mod, which GP never reads).' ;;
+    *) err 'no #mobile-header on baseline — generate_menu_plus_settings mobile_header is not enabled. V25 cannot be observed. Reseed layout-conditions (v1 wrote this as a theme_mod, which GP never reads).' ;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -520,8 +521,8 @@ esac
 # nothing to do with the behaviour under test. Suppressed loop-card titles are the
 # proof that the element is live.
 case "${ARCHIVE}" in
-    *'class="entry-title"'*) err 'loop-card titles still render on the archive — lc-el-layout-title-archive is not applying, so the gp-no-content-title check below would pass vacuously. Reseed layout-conditions at blueprint v4+ and check its taxonomy:category lc-archive display condition.' ;;
-    *) ok 'loop-card item titles ARE suppressed (element live, blueprint v4+) — the two roles are genuinely split' ;;
+    *'class="entry-title"'*) err 'loop-card titles still render on the archive — lc-el-layout-title-archive is not applying, so the gp-no-content-title check below would pass vacuously. Reseed layout-conditions and check its taxonomy:category lc-archive display condition.' ;;
+    *) ok 'loop-card item titles ARE suppressed (element live) — the two roles are genuinely split' ;;
 esac
 
 case "${ARCHIVE}" in
@@ -637,7 +638,7 @@ esac
 # Both must now be ABSENT. Neither source is read on any page type.
 #
 # Worth naming because it is easy to misread as an over-broad control: on this
-# the site of that time the pre-closure rule emitted gp-no-featured-image on the BASELINE too.
+# the earlier shared site the pre-closure rule emitted gp-no-featured-image on the BASELINE too.
 # Section 0 pins the blog image position to `inside-content`, so GP's callback
 # sits on `generate_before_content` while the old rule probed
 # `generate_after_entry_header` — absent everywhere, on every singular page,
@@ -665,7 +666,7 @@ esac
 # content is the marker — it renders only when the element is live.
 case "${HERO}" in
     *'lc-page-hero-element'*) ok 'Page Hero element is live on lc-page-hero (its block content renders)' ;;
-    *) err 'lc-el-page-hero is not applying to lc-page-hero — the relocation under test is not happening, so the assertion below would pass vacuously. Most likely the element carries no _generate_hook, which makes GP return before registering it at all (inert from v1 to v6). Reseed layout-conditions at v7+.' ;;
+    *) err 'lc-el-page-hero is not applying to lc-page-hero — the relocation under test is not happening, so the assertion below would pass vacuously. Most likely the element carries no _generate_hook, which makes GP return before registering it at all (inert from v1 to v6). Reseed layout-conditions.' ;;
 esac
 
 case "${HERO}" in

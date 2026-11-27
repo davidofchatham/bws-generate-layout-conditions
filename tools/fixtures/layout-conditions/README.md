@@ -1,11 +1,6 @@
 # layout-conditions blueprint
 
-GP **theme-structure** fixtures: `gp_elements` (Block / Layout / Page Hero),
-per-post Disable-Elements metabox meta, sidebar layouts, and the Menu Plus
-mobile header — plus, since v8, the GB Pro `gblocks_condition` posts and the
-blocks that reference them, which is where the *authoring workflow* becomes
-observable rather than only the plugin's own output. Composes on nothing and
-runs on its own site, `layout-conditions` at `layout.test`.
+GP **theme-structure** fixtures: `gp_elements` (Block / Layout / Page Hero), per-post Disable-Elements metabox meta, sidebar layouts, and the Menu Plus mobile header — plus, since v8, the GB Pro `gblocks_condition` posts and the blocks that reference them, which is where the *authoring workflow* becomes observable rather than only the plugin's own output. Composes on nothing and runs on its own site, `layout-conditions` at `layout.test`.
 
 ## Running the suite
 
@@ -15,28 +10,15 @@ One command runs the whole suite, from a WSL shell:
 bash /mnt/d/Dev/Plugins/bws-generate-layout-conditions/tools/fixtures/layout-conditions/run.sh --site layout-conditions
 ```
 
-In order: [upstream surface probe](../../probes/upstream-surface.php), seed,
-verify, seam fidelity, poisoned signal, render. It stops at the first failing
-step and exits nonzero. It takes `--env-root` (or `WP_LITESPEED_ROOT`, default
-`~/wp-litespeed`) and adds no assertions of its own. The blueprint is not in the
-environment's seed family, so this script is where the step order is recorded.
-Each step also runs on its own — see [Seeding](#seeding).
+In order: [upstream surface probe](../../probes/upstream-surface.php), seed, verify, seam fidelity, poisoned signal, render. It stops at the first failing step and exits nonzero. It takes `--env-root` (or `WP_LITESPEED_ROOT`, default `~/wp-litespeed`) and adds no assertions of its own. The blueprint is not in the environment's seed family, so this script is where the step order is recorded. Each step also runs on its own — see [Seeding](#seeding).
 
 ## Why a separate site
 
-These fixtures test site-wide theme behavior, so they cannot keep to their own
-pages: they write the Menu Plus and Blog options, assign both nav locations and
-require GP Premium modules to be on. On a shared site that changes what other
-blueprints render.
+These fixtures test site-wide theme behavior, so they cannot keep to their own pages: they write the Menu Plus and Blog options, assign both nav locations and require GP Premium modules to be on. On a shared site that changes what other blueprints render.
 
-The site holds only GeneratePress, GP Premium, GenerateBlocks, GenerateBlocks Pro
-and this plugin (from the working copy). Versions are updated by hand; no beta
-channel is assumed.
+The site holds only GeneratePress, GP Premium, GenerateBlocks, GenerateBlocks Pro and this plugin (from the working copy). Versions are updated by hand; no beta channel is assumed.
 
-There is **no `schema.php`**: the archive uses core `category` and `post`, and
-every other post type and meta key is registered by GP Premium or GB Pro. There
-is nothing of our own to keep alive across a snapshot restore, so there is no
-mu-plugin stub either.
+There is **no `schema.php`**: the archive uses core `category` and `post`, and every other post type and meta key is registered by GP Premium or GB Pro. There is nothing of our own to keep alive across a snapshot restore, so there is no mu-plugin stub either.
 
 ## What the unit suite cannot cover
 
@@ -79,33 +61,11 @@ it:
 | `lc-page-featured-kill` | active | not active (kill switch) | page content |
 | `/category/lc-archive/` | active | not active (off singular) | `lc-el-block-archive-markers` |
 
-The fourth combination — **post setting disabled, slot active** — is unreachable
-by construction: this plugin removes the five callbacks the slot rule reads at
-`wp:60` whenever the toggle is set, and the Detector first resolves later. It is
-**asserted rather than omitted**. `lc-page-metabox-featured` is the only page
-where the toggle is set, so it is the only place that combination could appear,
-and the slot marker's absence there is what says it does not. A missing row in a
-table reads as an oversight; a named assertion does not.
+The fourth combination — **post setting disabled, slot active** — is unreachable by construction: this plugin removes the five callbacks the slot rule reads at `wp:60` whenever the toggle is set, and the Detector first resolves later. It is **asserted rather than omitted**. `lc-page-metabox-featured` is the only page where the toggle is set, so it is the only place that combination could appear, and the slot marker's absence there is what says it does not. A missing row in a table reads as an oversight; a named assertion does not.
 
 ## The four test files, and the difference
 
-`verify.php` asserts the **fixtures** landed and discriminate — so a suite
-failure means "the Detector regressed", not "the fixture seeded nothing". 67
-assertions. Its §7 (added v6) pins the one thing this blueprint had left as an
-inherited environment variable: the GP Premium **Blog** module, which decides
-*which* of the two featured-image render paths is live. The site had it off, so
-every featured-image assertion here tested the theme path only and a suppression
-covering half the surface passed green (B8). Its §6 (added v4) is the one that closes B6: it bootstraps a real
-**archive** query and asserts all four archive elements actually apply there
-(the third added v5 — and it is the only one carrying *two* display conditions,
-so it is also what would catch `show_data()` regressing the display list from OR
-to AND; the fourth is v8's marker element).
-Its §2 gained one more shape check at v7: a Page Hero element must carry
-`_generate_hook`, without which GP returns before registering it (B9) — at v8
-that check covers the archive marker element too, since `hook` is in the same
-set of block types the loader's switch does not name.
-Existence, publish status and meta shape were never the weak link — a fixture
-can pass all three and still match no request, or never be looked at.
+`verify.php` asserts the **fixtures** landed and discriminate — so a suite failure means "the Detector regressed", not "the fixture seeded nothing". 67 assertions. Its §7 (added v6) pins the one thing this blueprint had left as an inherited environment variable: the GP Premium **Blog** module, which decides *which* of the two featured-image render paths is live. The earlier shared site had it off, so every featured-image assertion here tested the theme path only and a suppression covering half the surface passed green (B8). Its §6 (added v4) is the one that closes B6: it bootstraps a real **archive** query and asserts all four archive elements actually apply there (the third added v5 — and it is the only one carrying *two* display conditions, so it is also what would catch `show_data()` regressing the display list from OR to AND; the fourth is v8's marker element). Its §2 gained one more shape check at v7: a Page Hero element must carry `_generate_hook`, without which GP returns before registering it (B9) — at v8 that check covers the archive marker element too, since `hook` is in the same set of block types the loader's switch does not name. Existence, publish status and meta shape were never the weak link — a fixture can pass all three and still match no request, or never be looked at.
 
 Its **§8** (added v8) covers the GB Pro surface, which has failure modes the GP
 ones do not. Five things, in the order they can break:
@@ -130,41 +90,16 @@ ones do not. Five things, in the order they can break:
   IDs. The failure this catches is an unresolved `{{condition:…}}` placeholder:
   `absint()` makes it `0`, GB Pro reads `0` as "no condition set" and returns the
   block untouched, so the marker renders everywhere.
-* **That they answer, and answer differently.** Everything above is still
-  presence and shape, and the standing rule here is that a fixture is only real
-  once something asserts it CHANGED an outcome. So both conditions are evaluated
-  under a bootstrapped query on `lc-page-featured-kill`, where the two rules
-  genuinely disagree: the post setting is untouched (true) while GP's five
-  callbacks are gone (false). **One request yields both verdicts**, which is what
-  makes this safe from the CLI — neither an always-true nor an always-false
-  evaluator can produce that pair, so no second page and therefore no ordering
-  hazard is needed.
+* **That they answer, and answer differently.** Everything above is still presence and shape, and the standing rule here is that a fixture is only real once something asserts it CHANGED an outcome. So both conditions are evaluated under a bootstrapped query on `lc-page-featured-kill`, where the two rules genuinely disagree: the post setting is untouched (true) while GP's five callbacks are gone (false). **One request yields both verdicts**, which is what makes this safe from the CLI — neither an always-true nor an always-false evaluator can produce that pair, so no second page and therefore no ordering hazard is needed.
 
-§8 also proves the kill-switch element applies to `lc-page-featured-kill` **and
-not** to `lc-page-baseline` — one arm is not enough, because an always-true
-`show_data()` would disable the image on the control page that every absence
-assertion in the render harness is read against. It runs **last** in the file for
-the same reason `poisoned-signal.php` runs last among the suites: bootstrapping
-that page fires `wp`, GP applies the element, and its five `remove_action()`
-calls persist process-globally. Nothing below it may read featured-image hook
-state.
+§8 also proves the kill-switch element applies to `lc-page-featured-kill` **and not** to `lc-page-baseline` — one arm is not enough, because an always-true `show_data()` would disable the image on the control page that every absence assertion in the render harness is read against. It runs **last** in the file for the same reason `poisoned-signal.php` runs last among the suites: bootstrapping that page fires `wp`, GP applies the element, and its five `remove_action()` calls persist process-globally. Nothing below it may read featured-image hook state.
 
 Note that §8 is not where all 25 of v8's new `verify.php` assertions live — the
 existence loops in §1, the `_generate_hook` check in §2 and the fourth archive
 element in §6 carry seven of them, because the new fixtures belong to the same
 categories those sections already cover.
 
-**Mutation-checked ×6, one per fixture the ticket added or newly reads.**
-Dropping the condition from a seeded marker block fails 4 render assertions and
-5 verify ones by name; pointing the kill switch at the per-post metabox key fails
-2 and 1; removing the Page Hero's image toggle fails the hero row's two; removing
-the per-post toggle fails 4 (two of them in §1/§2, which is the point — the rows
-are not independent); stripping the archive marker element's `_generate_hook`,
-and dropping the baseline's marker blocks, each **hard-abort** the render suite.
-The `_generate_hook` one is worth reading twice: `verify.php` §6 still reports
-that element "applies on /category/lc-archive/", because `show_data()` knows nothing
-about whether GP ever registered the element. That is B9's exact shape, and it is
-why the render-side liveness control exists rather than being redundant with §6.
+**Mutation-checked ×6, one per fixture the ticket added or newly reads.** Dropping the condition from a seeded marker block fails 4 render assertions and 5 verify ones by name; pointing the kill switch at the per-post metabox key fails 2 and 1; removing the Page Hero's image toggle fails the hero row's two; removing the per-post toggle fails 4 (two of them in §1/§2, which is the point — the rows are not independent); stripping the archive marker element's `_generate_hook`, and dropping the baseline's marker blocks, each **hard-abort** the render suite. The `_generate_hook` one is worth reading twice: `verify.php` §6 still reports that element "applies on /category/lc-archive/", because `show_data()` knows nothing about whether GP ever registered the element. That is B9's exact shape, and it is why the render-side liveness control exists rather than being redundant with §6.
 
 `seam-fidelity.php` asserts the **production adapter**
 (`BWS_GP_WP_Environment`) reads them correctly. It is the only thing pinning
@@ -193,11 +128,7 @@ the Detector, because the point it proves spans them. 20 assertions:
 | the poison | Visiting `lc-page-poisoned` instantiates the Block Elements, whose unconditional `remove_action()` (`class-block.php:169-175`) strips both constructs. Reproduces V2's observation as an executable fact. |
 | hook-state vs config-replay | States the false positive as an assertion — hook-state *would* report DISABLED, the Detector reports ACTIVE — then proves config-replay still discriminates on `lc-page-layout-disabled`, so "always active" can't fake a pass. |
 
-**Order is load-bearing.** `remove_action()` is process-global and this runs in
-one process, so the control arm must be asserted before anything visits
-`lc-page-poisoned`. The file re-checks the hooks immediately before poisoning
-them, so a reordering fails loudly instead of turning the control into a
-tautology. The header explains this at length — read it before editing.
+**Order is load-bearing.** `remove_action()` is process-global and this runs in one process, so the control arm must be asserted before anything visits `lc-page-poisoned`. The file re-checks the hooks immediately before poisoning them, so a reordering fails loudly instead of turning the control into a tautology. The header explains this at length — read it before editing.
 
 Mutation-checked: reverting `is_header_disabled()` to read hook state fails
 exactly one assertion, with a message naming the cause.
@@ -287,23 +218,7 @@ tools/fixtures/layout-conditions/render-surface.sh --site <site>
 **last** among the eval-file suites and in its own process. Do not fold its
 assertions into another file.
 
-**Blueprint v9 is required** for the render harness. Earlier versions cannot
-support it, and each shortfall turns a specific assertion into a vacuous pass —
-which is why the harness checks them before asserting anything, and why every one
-of those checks hard-aborts rather than recording a FAIL. v1: no page
-carried a featured image, no menu was assigned to either nav location, and
-`generate_menu_plus_settings` was written with `set_theme_mod()` while GP Premium
-reads it exclusively via `get_option()` (~20 call sites, zero `get_theme_mod`),
-so the mobile header was never enabled. v2: no thumbnail on the two nav-toggle
-pages, making T10's over-suppression checks vacuous. v3: no archive
-content-title element, so §6 had nothing to observe. v4: no secondary-nav Layout
-Element, so §7 had nothing to observe. v5: the GP Premium Blog module unpinned,
-so the featured-image assertions ran against whichever of the two render paths
-the site happened to have live (B8). v6: the Page Hero element carried no
-`_generate_hook` and so was never loaded at all, which makes §8's relocation
-assertion vacuous — it hard-aborts rather than passing (B9). v7: no conditioned
-blocks, no condition posts and no kill-switch fixture, so §9 has nothing to read
-at all — the unconditioned marker's absence hard-aborts on the first row it hits.
+**Blueprint v9 is required** for the render harness (v8 used the old prefix and a foreign archive). Earlier versions cannot support it (v8 used the old prefix and a foreign archive), and each shortfall turns a specific assertion into a vacuous pass — which is why the harness checks them before asserting anything, and why every one of those checks hard-aborts rather than recording a FAIL. v1: no page carried a featured image, no menu was assigned to either nav location, and `generate_menu_plus_settings` was written with `set_theme_mod()` while GP Premium reads it exclusively via `get_option()` (~20 call sites, zero `get_theme_mod`), so the mobile header was never enabled. v2: no thumbnail on the two nav-toggle pages, making T10's over-suppression checks vacuous. v3: no archive content-title element, so §6 had nothing to observe. v4: no secondary-nav Layout Element, so §7 had nothing to observe. v5: the GP Premium Blog module unpinned, so the featured-image assertions ran against whichever of the two render paths the site happened to have live (B8). v6: the Page Hero element carried no `_generate_hook` and so was never loaded at all, which makes §8's relocation assertion vacuous — it hard-aborts rather than passing (B9). v7: no conditioned blocks, no condition posts and no kill-switch fixture, so §9 has nothing to read at all — the unconditioned marker's absence hard-aborts on the first row it hits.
 
 Idempotent — upserts by `post_name`, safe to re-run.
 
@@ -355,32 +270,9 @@ it further: **a fixture is only real once something asserts it CHANGED an
 outcome, and only if the seeder can be shown to produce exactly what the
 manifest says.** The second clause is new; v4's lesson covered the first.
 
-**It recurred at v7, in a fourth form** (B9) — and this one is the purest, because
-the fixture was never *read* rather than read wrongly. `lc-el-page-hero` carried
-no `_generate_hook`, and GP resolves a block element's hook from that key for
-every type its switch does not name — `page-hero` among them. With the key
-absent the loader returns before it registers anything, including the `wp:100`
-callback that performs the relocation. So the element rendered nothing and
-removed nothing, from v1 through v6. What let it survive six versions is not
-subtle and is worth stating flatly: **no assertion in any suite touched that
-page.** Every check it passed was a check about the fixture — it exists, it is
-published, its meta has the right shape — and none of those can notice a
-consumer that discarded the whole thing. Fixed at v7 with the value GP's editor
-itself writes; `verify.php` §2 now asserts the key and names the early return,
-and `render-surface.sh` §8 hard-aborts unless the element's own content renders.
-Third clause for the generalisation below: **a fixture nothing asserts against
-is not covered, however thoroughly it is verified to exist.**
+**It recurred at v7, in a fourth form** (B9) — and this one is the purest, because the fixture was never *read* rather than read wrongly. `lc-el-page-hero` carried no `_generate_hook`, and GP resolves a block element's hook from that key for every type its switch does not name — `page-hero` among them. With the key absent the loader returns before it registers anything, including the `wp:100` callback that performs the relocation. So the element rendered nothing and removed nothing, from v1 through v6. What let it survive six versions is not subtle and is worth stating flatly: **no assertion in any suite touched that page.** Every check it passed was a check about the fixture — it exists, it is published, its meta has the right shape — and none of those can notice a consumer that discarded the whole thing. Fixed at v7 with the value GP's editor itself writes; `verify.php` §2 now asserts the key and names the early return, and `render-surface.sh` §8 hard-aborts unless the element's own content renders. Third clause for the generalisation below: **a fixture nothing asserts against is not covered, however thoroughly it is verified to exist.**
 
-**It recurred at v4, in a second form** (B6): both archive elements stored their
-display-condition `object` as the term **slug**, while GP resolves a taxonomy
-archive to `taxonomy:{taxonomy}` with object = the term **ID**
-(`class-conditions.php:225-231`) and compares non-strictly — and under PHP 8
-`7 == 'slug'` is false. So the elements matched no request at all, from v1
-through v3. Not a storage-backend mistake this time but the same shape: a value
-written in a form the consumer never matches, silent about it. Both times the
-fixture was readable, well-formed, and provably useless. The generalisation:
-**a fixture is only real once something asserts it CHANGED an outcome** —
-existence, meta shape and query-visibility checks all passed throughout.
+**It recurred at v4, in a second form** (B6): both archive elements stored their display-condition `object` as the term **slug**, while GP resolves a taxonomy archive to `taxonomy:{taxonomy}` with object = the term **ID** (`class-conditions.php:225-231`) and compares non-strictly — and under PHP 8 `7 == 'slug'` is false. So the elements matched no request at all, from v1 through v3. Not a storage-backend mistake this time but the same shape: a value written in a form the consumer never matches, silent about it. Both times the fixture was readable, well-formed, and provably useless. The generalisation: **a fixture is only real once something asserts it CHANGED an outcome** — existence, meta shape and query-visibility checks all passed throughout.
 
 When seeding anything that is not post meta, confirm which API the CONSUMER
 reads before choosing how to write it:
@@ -430,8 +322,4 @@ Not uniform, and the differences are load-bearing:
 
 ## The archive
 
-`category:lc-archive` (`/category/lc-archive/`) with the post `lc-archive-post`
-is the non-singular archive for V22, V31 and the archive row of the combination
-table. Those assertions are absence checks, so an empty archive would satisfy
-them: `seed.php` errors, `verify.php` and `seam-fidelity.php` record a failure,
-and `render-surface.sh` hard-aborts.
+`category:lc-archive` (`/category/lc-archive/`) with the post `lc-archive-post` is the non-singular archive for V22, V31 and the archive row of the combination table. Those assertions are absence checks, so an empty archive would satisfy them: `seed.php` errors, `verify.php` and `seam-fidelity.php` record a failure, and `render-surface.sh` hard-aborts.
